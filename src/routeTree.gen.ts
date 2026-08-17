@@ -17,6 +17,7 @@ import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedLancamentosRouteImport } from './routes/_authenticated/lancamentos'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
 import { Route as AuthenticatedParcelamentosRouteImport } from './routes/_authenticated/parcelamentos'
+import { Route as AuthenticatedPatrimonioRouteImport } from './routes/_authenticated/patrimonio'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,6 +60,11 @@ const AuthenticatedParcelamentosRoute =
     path: '/parcelamentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPatrimonioRoute = AuthenticatedPatrimonioRouteImport.update({
+  id: '/patrimonio',
+  path: '/patrimonio',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/lancamentos': typeof AuthenticatedLancamentosRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
+  '/patrimonio': typeof AuthenticatedPatrimonioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/lancamentos': typeof AuthenticatedLancamentosRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
+  '/patrimonio': typeof AuthenticatedPatrimonioRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/_authenticated/lancamentos': typeof AuthenticatedLancamentosRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/parcelamentos': typeof AuthenticatedParcelamentosRoute
+  '/_authenticated/patrimonio': typeof AuthenticatedPatrimonioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/lancamentos'
     | '/metas'
     | '/parcelamentos'
+    | '/patrimonio'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/lancamentos'
     | '/metas'
     | '/parcelamentos'
+    | '/patrimonio'
   id:
     | '__root__'
     | '/'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lancamentos'
     | '/_authenticated/metas'
     | '/_authenticated/parcelamentos'
+    | '/_authenticated/patrimonio'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -184,6 +196,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedParcelamentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/patrimonio': {
+      id: '/_authenticated/patrimonio'
+      path: '/patrimonio'
+      fullPath: '/patrimonio'
+      preLoaderRoute: typeof AuthenticatedPatrimonioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -193,6 +212,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLancamentosRoute: typeof AuthenticatedLancamentosRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedParcelamentosRoute: typeof AuthenticatedParcelamentosRoute
+  AuthenticatedPatrimonioRoute: typeof AuthenticatedPatrimonioRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -201,6 +221,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLancamentosRoute: AuthenticatedLancamentosRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedParcelamentosRoute: AuthenticatedParcelamentosRoute,
+  AuthenticatedPatrimonioRoute: AuthenticatedPatrimonioRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
