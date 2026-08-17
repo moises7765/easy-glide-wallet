@@ -4,6 +4,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+  --font-sans:
+    "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui,
+    sans-serif;
+  --color-positive: oklch(0.78 0.17 158);
+  --color-negative: oklch(0.68 0.19 22);
+  --color-nubank: oklch(0.47 0.25 305);
+}
+
 /*
  * Design system definition.
  *
