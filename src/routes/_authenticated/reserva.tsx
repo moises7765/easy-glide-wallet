@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { brl, num } from "@/lib/finance";
-import { useEmergencyFund, useMonthTransactions, useUpdate } from "@/lib/queries";
+import { useEmergencyFund, useSaveFund } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/reserva")({
   head: () => ({
@@ -25,24 +25,32 @@ export const Route = createFileRoute("/_authenticated/reserva")({
 
 function EmergencyPage() {
   const { data: fund } = useEmergencyFund();
-  const { expense } = useMonthTransactions();
-  const update = useUpdate("emergency_fund", "Reserva atualizada");
+  const save = useSaveFund();
+  const [amount, setAmount] = useState("");
 
   const current = num(fund?.current_amount);
-  const monthly = num(fund?.monthly_cost) || expense;
-  const months = num(fund?.target_months) || 6;
-  const target = monthly * months;
-  const covered = monthly > 0 ? current / monthly : 0;
+  const monthlyExpense = num(fund?.monthly_expense);
+  const monthsTarget = num(fund?.months_target) || 6;
+  const target = num(fund?.target_amount) || monthlyExpense * monthsTarget;
+  const covered = monthlyExpense > 0 ? current / monthlyExpense : 0;
 
-  const [amount, setAmount] = useState<string>("");
-
-  async function addAmount(delta: number) {
-    if (!fund) return;
-    await update.mutateAsync({
-      id: fund.id,
-      values: { current_amount: Math.max(0, current + delta) },
-    });
-    setAmount("");
+  function persist(values: Partial<{
+    current_amount: number;
+    target_amount: number;
+    months_target: number;
+    monthly_expense: number;
+  }>) {
+    const next = {
+      current_amount: current,
+      target_amount: target,
+      months_target: monthsTarget,
+      monthly_expense: monthlyExpense,
+      ...values,
+    };
+    if (values.months_target !== undefined || values.monthly_expense !== undefined) {
+      next.target_amount = next.months_target * next.monthly_expense;
+    }
+    save.mutate(next);
   }
 
   return (
@@ -55,7 +63,7 @@ function EmergencyPage() {
           <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">{brl(current)}</p>
           <ProgressBar current={current} target={target} />
           <p className="mt-2 text-xs text-muted-foreground">
-            Meta de {brl(target)} ({months} meses de {brl(monthly)})
+            Meta de {brl(target)} ({monthsTarget} meses de {brl(monthlyExpense)})
           </p>
         </Panel>
 
@@ -75,14 +83,20 @@ function EmergencyPage() {
               variant="outline"
               className="h-11 flex-1 rounded-full"
               disabled={!amount}
-              onClick={() => addAmount(-Number(amount))}
+              onClick={() => {
+                persist({ current_amount: Math.max(0, current - Number(amount)) });
+                setAmount("");
+              }}
             >
               Retirar
             </Button>
             <Button
               className="h-11 flex-1 rounded-full font-semibold"
               disabled={!amount}
-              onClick={() => addAmount(Number(amount))}
+              onClick={() => {
+                persist({ current_amount: current + Number(amount) });
+                setAmount("");
+              }}
             >
               Depositar
             </Button>
@@ -98,11 +112,8 @@ function EmergencyPage() {
                 className="mt-1"
                 type="number"
                 step="0.01"
-                defaultValue={monthly}
-                onBlur={(e) =>
-                  fund &&
-                  update.mutate({ id: fund.id, values: { monthly_cost: Number(e.target.value) } })
-                }
+                defaultValue={monthlyExpense}
+                onBlur={(e) => persist({ monthly_expense: Number(e.target.value) })}
               />
             </div>
             <div>
@@ -111,11 +122,8 @@ function EmergencyPage() {
                 className="mt-1"
                 type="number"
                 min={1}
-                defaultValue={months}
-                onBlur={(e) =>
-                  fund &&
-                  update.mutate({ id: fund.id, values: { target_months: Number(e.target.value) } })
-                }
+                defaultValue={monthsTarget}
+                onBlur={(e) => persist({ months_target: Number(e.target.value) })}
               />
             </div>
           </div>
