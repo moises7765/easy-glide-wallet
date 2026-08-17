@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/mais")({
 });
 
 function MorePage() {
-  const { data: user } = useUser();
+  const { email } = useUser();
   const { data: assets = [] } = useRows("assets");
   const { data: purchases = [] } = useRows("installment_purchases");
   const { data: fund } = useEmergencyFund();
@@ -51,7 +51,7 @@ function MorePage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Mais" subtitle={user?.email ?? ""} />
+      <PageHeader title="Mais" subtitle={email ?? ""} />
 
       <div className="space-y-4 px-5">
         <Panel className="divide-y divide-border p-0">

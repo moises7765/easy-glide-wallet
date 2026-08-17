@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedLancamentosRouteImport } from './routes/_authenticated/lancamentos'
+import { Route as AuthenticatedMaisRouteImport } from './routes/_authenticated/mais'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
 import { Route as AuthenticatedParcelamentosRouteImport } from './routes/_authenticated/parcelamentos'
 import { Route as AuthenticatedPatrimonioRouteImport } from './routes/_authenticated/patrimonio'
@@ -50,6 +51,11 @@ const AuthenticatedLancamentosRoute =
     path: '/lancamentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMaisRoute = AuthenticatedMaisRouteImport.update({
+  id: '/mais',
+  path: '/mais',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
   id: '/metas',
   path: '/metas',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/lancamentos': typeof AuthenticatedLancamentosRoute
+  '/mais': typeof AuthenticatedMaisRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/lancamentos': typeof AuthenticatedLancamentosRoute
+  '/mais': typeof AuthenticatedMaisRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/lancamentos': typeof AuthenticatedLancamentosRoute
+  '/_authenticated/mais': typeof AuthenticatedMaisRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/_authenticated/patrimonio': typeof AuthenticatedPatrimonioRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/cartoes'
     | '/inicio'
     | '/lancamentos'
+    | '/mais'
     | '/metas'
     | '/parcelamentos'
     | '/patrimonio'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/cartoes'
     | '/inicio'
     | '/lancamentos'
+    | '/mais'
     | '/metas'
     | '/parcelamentos'
     | '/patrimonio'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cartoes'
     | '/_authenticated/inicio'
     | '/_authenticated/lancamentos'
+    | '/_authenticated/mais'
     | '/_authenticated/metas'
     | '/_authenticated/parcelamentos'
     | '/_authenticated/patrimonio'
@@ -194,6 +206,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLancamentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mais': {
+      id: '/_authenticated/mais'
+      path: '/mais'
+      fullPath: '/mais'
+      preLoaderRoute: typeof AuthenticatedMaisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/metas': {
       id: '/_authenticated/metas'
       path: '/metas'
@@ -229,6 +248,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedLancamentosRoute: typeof AuthenticatedLancamentosRoute
+  AuthenticatedMaisRoute: typeof AuthenticatedMaisRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedParcelamentosRoute: typeof AuthenticatedParcelamentosRoute
   AuthenticatedPatrimonioRoute: typeof AuthenticatedPatrimonioRoute
@@ -239,6 +259,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedLancamentosRoute: AuthenticatedLancamentosRoute,
+  AuthenticatedMaisRoute: AuthenticatedMaisRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedParcelamentosRoute: AuthenticatedParcelamentosRoute,
   AuthenticatedPatrimonioRoute: AuthenticatedPatrimonioRoute,
