@@ -70,6 +70,17 @@ function invalidate(qc: ReturnType<typeof useQueryClient>, table: string) {
   if (table !== "net_worth_snapshots") qc.invalidateQueries({ queryKey: ["net_worth_snapshots"] });
 }
 
+type LooseQuery = {
+  update: (values: unknown) => {
+    eq: (column: string, value: string) => PromiseLike<{ error: { message: string } | null }>;
+  };
+  delete: () => {
+    eq: (column: string, value: string) => PromiseLike<{ error: { message: string } | null }>;
+  };
+};
+
+const loose = (table: TableName) => supabase.from(table) as unknown as LooseQuery;
+
 export function useCreate<T extends TableName>(table: T, label = "Salvo") {
   const qc = useQueryClient();
   return useMutation({
@@ -93,10 +104,7 @@ export function useUpdate<T extends TableName>(table: T, label = "Atualizado") {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, values }: { id: string; values: TablesUpdate<T> }) => {
-      const { error } = await supabase
-        .from(table)
-        .update(values as never)
-        .eq("id", id);
+      const { error } = await loose(table).update(values).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -111,7 +119,7 @@ export function useRemove<T extends TableName>(table: T, label = "Excluído") {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from(table).delete().eq("id", id);
+      const { error } = await loose(table).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
