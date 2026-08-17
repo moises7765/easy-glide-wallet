@@ -147,9 +147,10 @@ function CardSheet({ card, onClose }: { card: Card | "new" | null; onClose: () =
   const update = useUpdate("cards", "Cartão atualizado");
   const remove = useRemove("cards", "Cartão excluído");
   const isNew = card === "new";
-  const source = isNew ? EMPTY : card;
+  const existing = card && card !== "new" ? card : null;
+  const source = existing ?? EMPTY;
   const [form, setForm] = useState(source ?? EMPTY);
-  const key = isNew ? "new" : (card?.id ?? "");
+  const key = existing ? existing.id : "new";
   const [loadedKey, setLoadedKey] = useState(key);
   if (card && loadedKey !== key) {
     setLoadedKey(key);
@@ -206,12 +207,12 @@ function CardSheet({ card, onClose }: { card: Card | "new" | null; onClose: () =
           </Field>
         </div>
         <div className="flex gap-2 pt-2">
-          {!isNew && card !== "new" ? (
+          {existing ? (
             <Button
               variant="outline"
               className="h-12 flex-1 rounded-full text-destructive"
               onClick={async () => {
-                await remove.mutateAsync(card.id);
+                await remove.mutateAsync(existing.id);
                 onClose();
               }}
             >
@@ -221,10 +222,10 @@ function CardSheet({ card, onClose }: { card: Card | "new" | null; onClose: () =
           <Button
             className="h-12 flex-1 rounded-full font-semibold"
             onClick={async () => {
-              if (isNew) {
+              if (existing) {
+                await update.mutateAsync({ id: existing.id, values: form });
+              } else {
                 await create.mutateAsync(form);
-              } else if (card !== "new") {
-                await update.mutateAsync({ id: card.id, values: form });
               }
               onClose();
             }}
