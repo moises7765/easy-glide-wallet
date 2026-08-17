@@ -16,6 +16,7 @@ import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedLancamentosRouteImport } from './routes/_authenticated/lancamentos'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
+import { Route as AuthenticatedParcelamentosRouteImport } from './routes/_authenticated/parcelamentos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +53,12 @@ const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
   path: '/metas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedParcelamentosRoute =
+  AuthenticatedParcelamentosRouteImport.update({
+    id: '/parcelamentos',
+    path: '/parcelamentos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/inicio': typeof AuthenticatedInicioRoute
   '/lancamentos': typeof AuthenticatedLancamentosRoute
   '/metas': typeof AuthenticatedMetasRoute
+  '/parcelamentos': typeof AuthenticatedParcelamentosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -68,6 +76,7 @@ export interface FileRoutesByTo {
   '/inicio': typeof AuthenticatedInicioRoute
   '/lancamentos': typeof AuthenticatedLancamentosRoute
   '/metas': typeof AuthenticatedMetasRoute
+  '/parcelamentos': typeof AuthenticatedParcelamentosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -78,12 +87,27 @@ export interface FileRoutesById {
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/lancamentos': typeof AuthenticatedLancamentosRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
+  '/_authenticated/parcelamentos': typeof AuthenticatedParcelamentosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/cartoes' | '/inicio' | '/lancamentos' | '/metas'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/cartoes'
+    | '/inicio'
+    | '/lancamentos'
+    | '/metas'
+    | '/parcelamentos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/cartoes' | '/inicio' | '/lancamentos' | '/metas'
+  to:
+    | '/'
+    | '/auth'
+    | '/cartoes'
+    | '/inicio'
+    | '/lancamentos'
+    | '/metas'
+    | '/parcelamentos'
   id:
     | '__root__'
     | '/'
@@ -93,6 +117,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inicio'
     | '/_authenticated/lancamentos'
     | '/_authenticated/metas'
+    | '/_authenticated/parcelamentos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -152,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMetasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/parcelamentos': {
+      id: '/_authenticated/parcelamentos'
+      path: '/parcelamentos'
+      fullPath: '/parcelamentos'
+      preLoaderRoute: typeof AuthenticatedParcelamentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -160,6 +192,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedLancamentosRoute: typeof AuthenticatedLancamentosRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
+  AuthenticatedParcelamentosRoute: typeof AuthenticatedParcelamentosRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -167,6 +200,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedLancamentosRoute: AuthenticatedLancamentosRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
+  AuthenticatedParcelamentosRoute: AuthenticatedParcelamentosRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
