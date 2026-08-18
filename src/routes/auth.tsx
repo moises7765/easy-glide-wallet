@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { checkSignInMethod } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -33,6 +34,8 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [showReset, setShowReset] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -67,9 +70,52 @@ function AuthPage() {
       }
       navigate({ to: "/inicio" });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível entrar");
+      const message = error instanceof Error ? error.message : "";
+      if (/invalid login credentials/i.test(message)) {
+        try {
+          const check = await checkSignInMethod({ data: { email } });
+          if (check.oauthOnly) {
+            toast.error("Esta conta usa login com Google. Toque em “Continuar com Google”.");
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // segue com a mensagem padrão
+        }
+        toast.error("E-mail ou senha incorretos.");
+        setShowReset(true);
+      } else if (/email not confirmed/i.test(message)) {
+        setPendingEmail(email);
+        toast.error("Confirme seu e-mail antes de entrar.");
+      } else {
+        toast.error(message || "Não foi possível entrar");
+      }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function sendReset() {
+    if (!email) {
+      toast.error("Informe seu e-mail para recuperar a senha.");
+      return;
+    }
+    setSendingReset(true);
+    try {
+      const check = await checkSignInMethod({ data: { email } }).catch(() => null);
+      if (check?.oauthOnly) {
+        toast.error("Esta conta usa login com Google e não tem senha.");
+        return;
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      });
+      if (error) throw error;
+      toast.success("Enviamos um link de recuperação para seu e-mail.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o e-mail");
+    } finally {
+      setSendingReset(false);
     }
   }
 
@@ -161,6 +207,17 @@ function AuthPage() {
         >
           {mode === "signin" ? "Não tem conta? Criar agora" : "Já tenho conta"}
         </button>
+
+        {mode === "signin" ? (
+          <button
+            type="button"
+            onClick={sendReset}
+            disabled={sendingReset}
+            className={`mt-3 w-full text-sm ${showReset ? "text-primary" : "text-muted-foreground"}`}
+          >
+            Esqueci minha senha
+          </button>
+        ) : null}
 
         {pendingEmail ? (
           <button
