@@ -31,6 +31,11 @@ function ConfirmPage() {
       const tokenHash = params.get("token_hash");
       const type = params.get("type");
 
+      if (type === "recovery") {
+        window.location.replace(`/redefinir-senha${window.location.search}${window.location.hash}`);
+        return;
+      }
+
       if (tokenHash) {
         const { error } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
