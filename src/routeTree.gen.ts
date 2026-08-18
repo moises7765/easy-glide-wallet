@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ConfirmarRouteImport } from './routes/confirmar'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedLancamentosRouteImport } from './routes/_authenticated/lancamentos'
@@ -33,6 +34,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmarRoute = ConfirmarRouteImport.update({
+  id: '/confirmar',
+  path: '/confirmar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedCartoesRoute = AuthenticatedCartoesRouteImport.update({
@@ -81,6 +87,7 @@ const AuthenticatedReservaRoute = AuthenticatedReservaRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/confirmar': typeof ConfirmarRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/lancamentos': typeof AuthenticatedLancamentosRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/confirmar': typeof ConfirmarRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/lancamentos': typeof AuthenticatedLancamentosRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/confirmar': typeof ConfirmarRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/lancamentos': typeof AuthenticatedLancamentosRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/confirmar'
     | '/cartoes'
     | '/inicio'
     | '/lancamentos'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/confirmar'
     | '/cartoes'
     | '/inicio'
     | '/lancamentos'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/confirmar'
     | '/_authenticated/cartoes'
     | '/_authenticated/inicio'
     | '/_authenticated/lancamentos'
@@ -160,6 +172,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ConfirmarRoute: typeof ConfirmarRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -183,6 +196,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirmar': {
+      id: '/confirmar'
+      path: '/confirmar'
+      fullPath: '/confirmar'
+      preLoaderRoute: typeof ConfirmarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/cartoes': {
@@ -273,6 +293,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ConfirmarRoute: ConfirmarRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
