@@ -35,6 +35,28 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   });
 }
 
+function preventStaleDocumentCaching(request: Request, response: Response): Response {
+  if (request.method !== "GET") return response;
+
+  const acceptsHtml = request.headers.get("accept")?.includes("text/html") ?? false;
+  const isHtml = response.headers.get("content-type")?.includes("text/html") ?? false;
+  if (!acceptsHtml && !isHtml) return response;
+
+  const headers = new Headers(response.headers);
+  // Hashed JS/CSS assets remain cacheable, but route documents must always be
+  // revalidated. Otherwise iOS Safari can keep an old HTML document pointing
+  // at an obsolete client bundle after a preview deployment.
+  headers.set("cache-control", "no-cache, no-store, must-revalidate");
+  headers.set("pragma", "no-cache");
+  headers.set("expires", "0");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function isH3SwallowedErrorBody(body: string): boolean {
   try {
     const payload = JSON.parse(body) as { unhandled?: unknown; message?: unknown };
@@ -49,7 +71,8 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      return preventStaleDocumentCaching(request, normalized);
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
