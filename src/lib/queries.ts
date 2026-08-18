@@ -27,7 +27,6 @@ const ORDER: Record<TableName, { column: string; ascending: boolean }> = {
 };
 
 export function useUser() {
-  const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   useEffect(() => {
@@ -37,6 +36,25 @@ export function useUser() {
     });
   }, []);
   return { userId, email };
+}
+
+/** True once a Supabase session is confirmed, so queries never fire unauthenticated. */
+export function useSessionReady() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setReady(Boolean(data.session));
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setReady(Boolean(session));
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+  return ready;
 }
 
 export function useRows<T extends TableName>(table: T) {
