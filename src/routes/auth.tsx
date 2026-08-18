@@ -32,6 +32,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -47,10 +48,16 @@ function AuthPage() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: `${window.location.origin}/confirmar` },
         });
         if (error) throw error;
+        if (!data.session && data.user && (data.user.identities?.length ?? 0) === 0) {
+          toast.info("Este e-mail já tem conta. Faça login ou recupere a senha.");
+          setMode("signin");
+          return;
+        }
         if (!data.session) {
+          setPendingEmail(email);
           toast.success("Confira seu e-mail para confirmar a conta.");
           return;
         }
@@ -64,6 +71,20 @@ function AuthPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function resendConfirmation() {
+    if (!pendingEmail) return;
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: pendingEmail,
+      options: { emailRedirectTo: `${window.location.origin}/confirmar` },
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Enviamos outro e-mail de confirmação.");
   }
 
   async function google() {
@@ -140,6 +161,16 @@ function AuthPage() {
         >
           {mode === "signin" ? "Não tem conta? Criar agora" : "Já tenho conta"}
         </button>
+
+        {pendingEmail ? (
+          <button
+            type="button"
+            onClick={resendConfirmation}
+            className="mt-3 w-full text-sm text-primary"
+          >
+            Reenviar e-mail de confirmação
+          </button>
+        ) : null}
       </div>
     </main>
   );
