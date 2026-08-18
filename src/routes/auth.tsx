@@ -161,6 +161,16 @@ function AuthPage() {
         >
           {mode === "signin" ? "Não tem conta? Criar agora" : "Já tenho conta"}
         </button>
+
+        {pendingEmail ? (
+          <button
+            type="button"
+            onClick={resendConfirmation}
+            className="mt-3 w-full text-sm text-primary"
+          >
+            Reenviar e-mail de confirmação
+          </button>
+        ) : null}
       </div>
     </main>
   );
