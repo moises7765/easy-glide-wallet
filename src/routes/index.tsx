@@ -28,9 +28,9 @@ function IndexRedirect() {
     let active = true;
 
     void import("@/integrations/supabase/client").then(async ({ supabase }) => {
-      const { data } = await supabase.auth.getUser();
+      const { data } = await supabase.auth.getSession();
       if (active) {
-        await navigate({ to: data.user ? "/inicio" : "/auth", replace: true });
+        await navigate({ to: data.session ? "/inicio" : "/auth", replace: true });
       }
     });
 

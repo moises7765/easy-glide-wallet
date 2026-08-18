@@ -9,9 +9,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
-    return { user: data.user };
+    // Route access is a client-side UX guard; database policies remain the
+    // security boundary. Reading the persisted session avoids a late network
+    // failure sending mobile Safari into an /auth ↔ /inicio redirect loop.
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw redirect({ to: "/auth" });
+    return { user: data.session.user };
   },
   component: AppLayout,
 });
