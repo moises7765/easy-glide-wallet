@@ -18,6 +18,8 @@ export const Route = createFileRoute("/auth")({
         property: "og:description",
         content: "Acesse seu controle financeiro pessoal com segurança.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AuthPage,
