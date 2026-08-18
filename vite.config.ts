@@ -16,8 +16,10 @@ function readEnvFile(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const line of readFileSync(path, "utf8").split("\n")) {
     const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line);
-    if (!match) continue;
-    out[match[1]] = match[2].replace(/^["']|["']$/g, "");
+    const key = match?.[1];
+    const value = match?.[2];
+    if (!key || value === undefined) continue;
+    out[key] = value.replace(/^["']|["']$/g, "");
   }
   return out;
 }
