@@ -42,7 +42,7 @@ function AppLayout() {
       </button>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-md items-center justify-between px-3 pt-2 pb-6">
+        <div className="mx-auto flex max-w-md items-center justify-between px-3 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {TABS.map((tab) => {
             const active = pathname.startsWith(tab.to);
             const Icon = tab.icon;
