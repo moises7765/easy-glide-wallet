@@ -4,11 +4,11 @@ const config: CapacitorConfig = {
   appId: "app.lovable.fluxofinancas",
   appName: "Fluxo Finanças",
   webDir: "dist/client",
-  // O app depende de internet e roda o mesmo build web (SSR + Supabase).
-  server: {
-    url: "https://project--fcec170c-02fc-4a96-9829-b74eced227f5.lovable.app",
-    cleartext: false,
-  },
+  // Apenas o build nativo aponta para a URL remota (CAP_SERVER_URL).
+  // Assim a configuração mobile nunca interfere no preview/build web.
+  ...(process.env["CAP_SERVER_URL"]
+    ? { server: { url: process.env["CAP_SERVER_URL"], cleartext: false } }
+    : {}),
   ios: {
     contentInset: "never",
     backgroundColor: "#1a1a2e",
