@@ -27,6 +27,7 @@ const ORDER: Record<TableName, { column: string; ascending: boolean }> = {
 };
 
 export function useUser() {
+  const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   useEffect(() => {
