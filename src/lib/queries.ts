@@ -38,9 +38,30 @@ export function useUser() {
   return { userId, email };
 }
 
+/** True once a Supabase session is confirmed, so queries never fire unauthenticated. */
+export function useSessionReady() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setReady(Boolean(data.session));
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setReady(Boolean(session));
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+  return ready;
+}
+
 export function useRows<T extends TableName>(table: T) {
+  const ready = useSessionReady();
   return useQuery({
     queryKey: [table],
+    enabled: ready,
     queryFn: async () => {
       const order = ORDER[table];
       const { data, error } = await supabase
@@ -54,8 +75,10 @@ export function useRows<T extends TableName>(table: T) {
 }
 
 export function useEmergencyFund() {
+  const ready = useSessionReady();
   return useQuery({
     queryKey: ["emergency_fund"],
+    enabled: ready,
     queryFn: async () => {
       const { data, error } = await supabase.from("emergency_fund").select("*").maybeSingle();
       if (error) throw error;
