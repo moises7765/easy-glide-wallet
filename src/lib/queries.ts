@@ -39,8 +39,10 @@ export function useUser() {
 }
 
 export function useRows<T extends TableName>(table: T) {
+  const ready = useSessionReady();
   return useQuery({
     queryKey: [table],
+    enabled: ready,
     queryFn: async () => {
       const order = ORDER[table];
       const { data, error } = await supabase
@@ -54,8 +56,10 @@ export function useRows<T extends TableName>(table: T) {
 }
 
 export function useEmergencyFund() {
+  const ready = useSessionReady();
   return useQuery({
     queryKey: ["emergency_fund"],
+    enabled: ready,
     queryFn: async () => {
       const { data, error } = await supabase.from("emergency_fund").select("*").maybeSingle();
       if (error) throw error;
