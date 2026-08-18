@@ -6,7 +6,27 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+// Lovable Cloud exposes both runtime SUPABASE_* names and Vite's public
+// VITE_SUPABASE_* names. During a cold preview build only the runtime names
+// may be present, so explicitly bridge the two public values into the client
+// bundle instead of letting /auth fail at runtime.
+const supabaseUrl = process.env["VITE_SUPABASE_URL"] ?? process.env["SUPABASE_URL"];
+const supabasePublishableKey =
+  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"];
+
+const supabaseClientDefine: Record<string, string> = {};
+if (supabaseUrl) {
+  supabaseClientDefine["import.meta.env.VITE_SUPABASE_URL"] = JSON.stringify(supabaseUrl);
+}
+if (supabasePublishableKey) {
+  supabaseClientDefine["import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY"] =
+    JSON.stringify(supabasePublishableKey);
+}
+
 export default defineConfig({
+  vite: {
+    define: supabaseClientDefine,
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
