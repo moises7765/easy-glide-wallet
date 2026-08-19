@@ -86,19 +86,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "Fluxo" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { title: "Fluxo Finanças — Controle financeiro pessoal" },
-      {
-        name: "description",
-        content:
-          "Controle receitas, despesas, cartões, patrimônio e metas em segundos, direto do seu iPhone.",
-      },
-      { property: "og:title", content: "Fluxo Finanças — Controle financeiro pessoal" },
-      {
-        property: "og:description",
-        content:
-          "Controle receitas, despesas, cartões, patrimônio e metas em segundos, direto do seu iPhone.",
-      },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Fluxo Finanças" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "theme-color", content: "#1a1a2e" },

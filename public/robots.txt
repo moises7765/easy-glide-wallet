@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://easy-glide-wallet.lovable.app/sitemap.xml
