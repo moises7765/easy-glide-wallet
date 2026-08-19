@@ -90,6 +90,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:site_name", content: "Fluxo Finanças" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
+      {
+        name: "google-site-verification",
+        content: "tHJiN8dsjOu7ywlwNwgpKFYjnCRuM23KUpYz3T8MHW4",
+      },
       { name: "theme-color", content: "#1a1a2e" },
     ],
     links: [
