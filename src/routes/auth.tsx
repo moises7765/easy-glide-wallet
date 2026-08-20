@@ -146,8 +146,8 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col justify-center px-6 py-12">
-      <div className="mx-auto w-full max-w-sm fade-up">
+    <div className="flex min-h-screen flex-col justify-center px-6 py-12">
+      <main className="mx-auto w-full max-w-sm fade-up">
         <div className="mb-10">
           <div className="mb-5 h-11 w-11 rounded-2xl bg-primary" />
           <h1 className="text-3xl font-semibold tracking-tight">Fluxo</h1>
@@ -228,7 +228,7 @@ function AuthPage() {
             Reenviar e-mail de confirmação
           </button>
         ) : null}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

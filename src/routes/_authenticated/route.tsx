@@ -8,13 +8,19 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
-    // Route access is a client-side UX guard; database policies remain the
-    // security boundary. Reading the persisted session avoids a late network
-    // failure sending mobile Safari into an /auth ↔ /inicio redirect loop.
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) throw redirect({ to: "/auth" });
-    return { user: data.session.user };
+  beforeLoad: async ({ location }) => {
+    // Check session on the client to avoid SSR 401s
+    if (typeof window !== "undefined") {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        throw redirect({ 
+          to: "/auth",
+          search: { redirect: location.href }
+        });
+      }
+      return { user: data.session.user };
+    }
+    return { user: null };
   },
   component: AppLayout,
 });
