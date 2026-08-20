@@ -107,6 +107,12 @@ function LandingPage() {
           >
             Já tenho conta
           </Link>
+          <Link
+            to="/guia/como-organizar-financas"
+            className="text-center text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Leia o guia: como organizar as finanças em 6 passos
+          </Link>
         </div>
 
         <section className="mt-12" aria-labelledby="recursos">
