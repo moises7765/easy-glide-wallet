@@ -228,8 +228,7 @@ function AuthPage() {
             Reenviar e-mail de confirmação
           </button>
         ) : null}
-      </div>
-    </main>
-  </div>
+      </main>
+    </div>
   );
 }
