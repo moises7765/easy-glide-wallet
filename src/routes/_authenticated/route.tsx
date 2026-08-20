@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_authenticated")({
       }
       return { user: data.session.user };
     }
+    return { user: null };
   },
   component: AppLayout,
 });
