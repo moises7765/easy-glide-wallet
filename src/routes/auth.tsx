@@ -229,6 +229,7 @@ function AuthPage() {
           </button>
         ) : null}
       </div>
-    </main>
+      </main>
+    </div>
   );
 }
