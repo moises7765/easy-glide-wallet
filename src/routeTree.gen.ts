@@ -23,6 +23,7 @@ import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedParcelamentosRouteImport } from './routes/_authenticated/parcelamentos'
 import { Route as AuthenticatedPatrimonioRouteImport } from './routes/_authenticated/patrimonio'
 import { Route as AuthenticatedReservaRouteImport } from './routes/_authenticated/reserva'
+import { Route as GuiaComoOrganizarFinancasRouteImport } from './routes/guia.como-organizar-financas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -95,6 +96,12 @@ const AuthenticatedReservaRoute = AuthenticatedReservaRouteImport.update({
   path: '/reserva',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const GuiaComoOrganizarFinancasRoute =
+  GuiaComoOrganizarFinancasRouteImport.update({
+    id: '/guia/como-organizar-financas',
+    path: '/guia/como-organizar-financas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/reserva': typeof AuthenticatedReservaRoute
+  '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,6 +133,7 @@ export interface FileRoutesByTo {
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/reserva': typeof AuthenticatedReservaRoute
+  '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,6 +151,7 @@ export interface FileRoutesById {
   '/_authenticated/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/_authenticated/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/_authenticated/reserva': typeof AuthenticatedReservaRoute
+  '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/parcelamentos'
     | '/patrimonio'
     | '/reserva'
+    | '/guia/como-organizar-financas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/parcelamentos'
     | '/patrimonio'
     | '/reserva'
+    | '/guia/como-organizar-financas'
   id:
     | '__root__'
     | '/'
@@ -190,6 +202,7 @@ export interface FileRouteTypes {
     | '/_authenticated/parcelamentos'
     | '/_authenticated/patrimonio'
     | '/_authenticated/reserva'
+    | '/guia/como-organizar-financas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -199,6 +212,7 @@ export interface RootRouteChildren {
   ConfirmarRoute: typeof ConfirmarRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  GuiaComoOrganizarFinancasRoute: typeof GuiaComoOrganizarFinancasRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -301,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReservaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/guia/como-organizar-financas': {
+      id: '/guia/como-organizar-financas'
+      path: '/guia/como-organizar-financas'
+      fullPath: '/guia/como-organizar-financas'
+      preLoaderRoute: typeof GuiaComoOrganizarFinancasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -336,6 +357,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfirmarRoute: ConfirmarRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  GuiaComoOrganizarFinancasRoute: GuiaComoOrganizarFinancasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
