@@ -41,18 +41,21 @@ const supabasePublishableKey =
   fileEnv["VITE_SUPABASE_PUBLISHABLE_KEY"] ??
   fileEnv["SUPABASE_PUBLISHABLE_KEY"];
 
-const supabaseClientDefine: Record<string, string> = {};
+const supabaseClientEnv: Record<string, string> = {};
 if (supabaseUrl) {
-  supabaseClientDefine["import.meta.env.VITE_SUPABASE_URL"] = JSON.stringify(supabaseUrl);
+  supabaseClientEnv["VITE_SUPABASE_URL"] = supabaseUrl;
 }
 if (supabasePublishableKey) {
-  supabaseClientDefine["import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY"] =
-    JSON.stringify(supabasePublishableKey);
+  supabaseClientEnv["VITE_SUPABASE_PUBLISHABLE_KEY"] = supabasePublishableKey;
 }
 
 export default defineConfig({
   vite: {
-    define: supabaseClientDefine,
+    // Define the complete object because the generated client uses computed
+    // property access. Vite only rewrites direct `import.meta.env.KEY` access.
+    define: {
+      "import.meta.env": JSON.stringify(supabaseClientEnv),
+    },
   },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
