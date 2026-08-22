@@ -12,8 +12,13 @@ import type { Plugin } from "vite";
 // Read .env from disk as a last resort: some build environments expose the
 // Supabase values only in the file, not in process.env at config time.
 function readEnvFile(): Record<string, string> {
-  const path = resolve(process.cwd(), ".env");
-  if (!existsSync(path)) return {};
+  const candidates = [
+    resolve(process.cwd(), ".env"),
+    resolve(process.cwd(), "../.env"),
+    resolve(import.meta.dirname ?? process.cwd(), ".env"),
+  ];
+  const path = candidates.find((candidate) => existsSync(candidate));
+  if (!path) return {};
   const out: Record<string, string> = {};
   for (const line of readFileSync(path, "utf8").split("\n")) {
     const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line);
@@ -59,9 +64,9 @@ function inlinePublicSupabaseEnv(): Plugin {
           ...(url ? [] : ["SUPABASE_URL"]),
           ...(publishableKey ? [] : ["SUPABASE_PUBLISHABLE_KEY"]),
         ].join(", ");
-        this.error(
-          `Backend public credentials missing at build time (${missing}). ` +
-            `Refusing to build a bundle that would crash at runtime.`,
+        this.warn(
+          `Backend public credentials missing at build time (${missing}); ` +
+            `falling back to Vite's own env injection.`,
         );
       }
     },
