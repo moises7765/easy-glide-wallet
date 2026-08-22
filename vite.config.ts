@@ -7,6 +7,7 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { Plugin } from "vite";
 
 // Read .env from disk as a last resort: some build environments expose the
 // Supabase values only in the file, not in process.env at config time.
@@ -24,38 +25,71 @@ function readEnvFile(): Record<string, string> {
   return out;
 }
 
-const fileEnv = readEnvFile();
+function resolvePublicSupabaseEnv() {
+  const fileEnv = readEnvFile();
+  const pick = (...keys: string[]) => {
+    for (const key of keys) {
+      const value = process.env[key] ?? fileEnv[key];
+      if (value) return value;
+    }
+    return undefined;
+  };
 
-// Lovable Cloud exposes both runtime SUPABASE_* names and Vite's public
-// VITE_SUPABASE_* names. During a cold preview build only the runtime names
-// may be present, so explicitly bridge the two public values into the client
-// bundle instead of letting /auth fail at runtime.
-const supabaseUrl =
-  process.env["VITE_SUPABASE_URL"] ??
-  process.env["SUPABASE_URL"] ??
-  fileEnv["VITE_SUPABASE_URL"] ??
-  fileEnv["SUPABASE_URL"];
-const supabasePublishableKey =
-  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ??
-  process.env["SUPABASE_PUBLISHABLE_KEY"] ??
-  fileEnv["VITE_SUPABASE_PUBLISHABLE_KEY"] ??
-  fileEnv["SUPABASE_PUBLISHABLE_KEY"];
-
-const supabaseClientEnv: Record<string, string> = {};
-if (supabaseUrl) {
-  supabaseClientEnv["VITE_SUPABASE_URL"] = supabaseUrl;
+  return {
+    url: pick("VITE_SUPABASE_URL", "SUPABASE_URL"),
+    publishableKey: pick("VITE_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_PUBLISHABLE_KEY"),
+  };
 }
-if (supabasePublishableKey) {
-  supabaseClientEnv["VITE_SUPABASE_PUBLISHABLE_KEY"] = supabasePublishableKey;
+
+// The generated Supabase client reads `import.meta.env['VITE_SUPABASE_URL']`
+// (computed access). Vite's `define` only rewrites dot access, and replacing
+// the whole `import.meta.env` object wipes MODE/DEV/SSR and every value Vite
+// injects itself. So rewrite just those two computed reads, surgically.
+function inlinePublicSupabaseEnv(): Plugin {
+  const KEYS = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"] as const;
+
+  return {
+    name: "lovable-inline-public-supabase-env",
+    enforce: "pre",
+    apply: "build",
+    buildStart() {
+      const { url, publishableKey } = resolvePublicSupabaseEnv();
+      if (!url || !publishableKey) {
+        const missing = [
+          ...(url ? [] : ["SUPABASE_URL"]),
+          ...(publishableKey ? [] : ["SUPABASE_PUBLISHABLE_KEY"]),
+        ].join(", ");
+        this.error(
+          `Backend public credentials missing at build time (${missing}). ` +
+            `Refusing to build a bundle that would crash at runtime.`,
+        );
+      }
+    },
+    transform(code) {
+      if (!code.includes("import.meta.env")) return null;
+      const { url, publishableKey } = resolvePublicSupabaseEnv();
+      const values: Record<string, string | undefined> = {
+        VITE_SUPABASE_URL: url,
+        VITE_SUPABASE_PUBLISHABLE_KEY: publishableKey,
+      };
+
+      let out = code;
+      for (const key of KEYS) {
+        const value = values[key];
+        if (!value) continue;
+        out = out
+          .replaceAll(`import.meta.env['${key}']`, JSON.stringify(value))
+          .replaceAll(`import.meta.env["${key}"]`, JSON.stringify(value))
+          .replaceAll(`import.meta.env.${key}`, JSON.stringify(value));
+      }
+      return out === code ? null : { code: out, map: null };
+    },
+  };
 }
 
 export default defineConfig({
   vite: {
-    // Define the complete object because the generated client uses computed
-    // property access. Vite only rewrites direct `import.meta.env.KEY` access.
-    define: {
-      "import.meta.env": JSON.stringify(supabaseClientEnv),
-    },
+    plugins: [inlinePublicSupabaseEnv()],
   },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
