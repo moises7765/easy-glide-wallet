@@ -112,10 +112,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+function runtimeConfigScript() {
+  // Injeta as credenciais públicas do backend no HTML em tempo de execução (SSR),
+  // garantindo que o cliente funcione mesmo se o build não tiver embutido as VITE_*.
+  const url =
+    (typeof process !== "undefined" ? process.env?.["SUPABASE_URL"] : undefined) ??
+    (typeof process !== "undefined" ? process.env?.["VITE_SUPABASE_URL"] : undefined) ??
+    "";
+  const key =
+    (typeof process !== "undefined" ? process.env?.["SUPABASE_PUBLISHABLE_KEY"] : undefined) ??
+    (typeof process !== "undefined" ? process.env?.["VITE_SUPABASE_PUBLISHABLE_KEY"] : undefined) ??
+    "";
+  return `window.__SUPABASE_CONFIG__=${JSON.stringify({ url, key }).replace(/</g, "\\u003c")};`;
+}
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
       <head>
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: runtimeConfigScript() }}
+        />
         <HeadContent />
       </head>
       <body>
