@@ -7,6 +7,7 @@ import {
   brl,
   brlShort,
   cardInvoice,
+  monthInitialUpper,
   monthKey,
   monthLabel,
   nextMonthKeys,
