@@ -136,7 +136,7 @@ function Dashboard() {
       <div className="px-5">
         <Panel>
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Fluxo dos últimos 6 meses</p>
+            <p className="text-sm font-medium">Fluxo dos últimos 12 meses</p>
             <span className="text-xs text-muted-foreground">entradas x saídas</span>
           </div>
           <div className="mt-3 h-36">
@@ -180,7 +180,7 @@ function Dashboard() {
           </div>
           <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
             {flow.map((f) => (
-              <span key={f.mes}>{f.mes}</span>
+              <span key={f.key}>{monthInitialUpper(f.key)}</span>
             ))}
           </div>
         </Panel>
