@@ -20,6 +20,7 @@ import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedLancamentosRouteImport } from './routes/_authenticated/lancamentos'
 import { Route as AuthenticatedMaisRouteImport } from './routes/_authenticated/mais'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
+import { Route as AuthenticatedNovoGastoRouteImport } from './routes/_authenticated/novo-gasto'
 import { Route as AuthenticatedParcelamentosRouteImport } from './routes/_authenticated/parcelamentos'
 import { Route as AuthenticatedPatrimonioRouteImport } from './routes/_authenticated/patrimonio'
 import { Route as AuthenticatedReservaRouteImport } from './routes/_authenticated/reserva'
@@ -80,6 +81,11 @@ const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
   path: '/metas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNovoGastoRoute = AuthenticatedNovoGastoRouteImport.update({
+  id: '/novo-gasto',
+  path: '/novo-gasto',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedParcelamentosRoute =
   AuthenticatedParcelamentosRouteImport.update({
     id: '/parcelamentos',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/lancamentos': typeof AuthenticatedLancamentosRoute
   '/mais': typeof AuthenticatedMaisRoute
   '/metas': typeof AuthenticatedMetasRoute
+  '/novo-gasto': typeof AuthenticatedNovoGastoRoute
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/reserva': typeof AuthenticatedReservaRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/lancamentos': typeof AuthenticatedLancamentosRoute
   '/mais': typeof AuthenticatedMaisRoute
   '/metas': typeof AuthenticatedMetasRoute
+  '/novo-gasto': typeof AuthenticatedNovoGastoRoute
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/reserva': typeof AuthenticatedReservaRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated/lancamentos': typeof AuthenticatedLancamentosRoute
   '/_authenticated/mais': typeof AuthenticatedMaisRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
+  '/_authenticated/novo-gasto': typeof AuthenticatedNovoGastoRoute
   '/_authenticated/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/_authenticated/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/_authenticated/reserva': typeof AuthenticatedReservaRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/lancamentos'
     | '/mais'
     | '/metas'
+    | '/novo-gasto'
     | '/parcelamentos'
     | '/patrimonio'
     | '/reserva'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/lancamentos'
     | '/mais'
     | '/metas'
+    | '/novo-gasto'
     | '/parcelamentos'
     | '/patrimonio'
     | '/reserva'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lancamentos'
     | '/_authenticated/mais'
     | '/_authenticated/metas'
+    | '/_authenticated/novo-gasto'
     | '/_authenticated/parcelamentos'
     | '/_authenticated/patrimonio'
     | '/_authenticated/reserva'
@@ -294,6 +306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMetasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/novo-gasto': {
+      id: '/_authenticated/novo-gasto'
+      path: '/novo-gasto'
+      fullPath: '/novo-gasto'
+      preLoaderRoute: typeof AuthenticatedNovoGastoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/parcelamentos': {
       id: '/_authenticated/parcelamentos'
       path: '/parcelamentos'
@@ -331,6 +350,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLancamentosRoute: typeof AuthenticatedLancamentosRoute
   AuthenticatedMaisRoute: typeof AuthenticatedMaisRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
+  AuthenticatedNovoGastoRoute: typeof AuthenticatedNovoGastoRoute
   AuthenticatedParcelamentosRoute: typeof AuthenticatedParcelamentosRoute
   AuthenticatedPatrimonioRoute: typeof AuthenticatedPatrimonioRoute
   AuthenticatedReservaRoute: typeof AuthenticatedReservaRoute
@@ -342,6 +362,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLancamentosRoute: AuthenticatedLancamentosRoute,
   AuthenticatedMaisRoute: AuthenticatedMaisRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
+  AuthenticatedNovoGastoRoute: AuthenticatedNovoGastoRoute,
   AuthenticatedParcelamentosRoute: AuthenticatedParcelamentosRoute,
   AuthenticatedPatrimonioRoute: AuthenticatedPatrimonioRoute,
   AuthenticatedReservaRoute: AuthenticatedReservaRoute,
