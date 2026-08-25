@@ -87,7 +87,7 @@ function Dashboard() {
       const saida = transactions
         .filter((t) => t.type === "expense" && monthKey(t.date) === key)
         .reduce((s, t) => s + num(t.amount), 0);
-      return { mes: monthLabel(key), entrada, saida, saldo: entrada - saida };
+      return { key, mes: monthLabel(key), entrada, saida, saldo: entrada - saida };
     });
   }, [transactions]);
 
