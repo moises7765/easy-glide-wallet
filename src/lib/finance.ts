@@ -76,6 +76,14 @@ export function monthLabel(key: string) {
     .replace(".", "");
 }
 
+export function monthInitialUpper(key: string) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, 1)
+    .toLocaleDateString("pt-BR", { month: "long" })
+    .slice(0, 3)
+    .toUpperCase();
+}
+
 export function formatDayMonth(value: string) {
   return parseDate(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 }
