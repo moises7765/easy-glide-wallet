@@ -11,12 +11,14 @@ Corrigir o título e simplificar os rótulos do eixo X do gráfico de linha/áre
 
 2. **Rótulos dos meses** no eixo X do mesmo arquivo:
    - Atualmente exibem o resultado de `monthLabel(key)` (ex: "ago/26").
-   - Passar a exibir apenas a inicial do mês capitalizada (ex: "A").
-   - Implementar uma função auxiliar `monthInitial(key: string)` em `src/lib/finance.ts` que retorne a primeira letra maiúscula do nome do mês, usando `toLocaleDateString("pt-BR", { month: "long" })`.
+   - Passar a exibir as 3 primeiras letras do nome do mês em maiúsculas (JAN, FEV, MAR, ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ).
+   - Implementar uma função auxiliar `monthInitialUpper(key: string)` em `src/lib/finance.ts` que retorne essa abreviação, usando `toLocaleDateString("pt-BR", { month: "long" })`.
+
+3. **Período do gráfico**:
+   - Manter o cálculo atual de últimos 12 meses corridos em ordem cronológica (`Array.from({ length: 12 }, ...)`), já ajustado previamente.
 
 ## Escopo preservado
 - O gráfico continuará sendo o mesmo `AreaChart` de linha com as áreas de entrada/saída.
-- O cálculo de 12 meses já está correto (`Array.from({ length: 12 }, ...)`); não será alterado.
 - Nenhuma outra página, componente, autenticação, banco, PWA/offline ou configuração será modificada.
 
 ## Validação
