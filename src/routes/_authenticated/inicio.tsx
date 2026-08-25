@@ -77,9 +77,10 @@ function Dashboard() {
   }, [transactions, categories, current]);
 
   const flow = useMemo(() => {
-    return Array.from({ length: 6 }, (_, i) => {
-      const key = monthKey(addMonths(new Date(), i - 5));
+    return Array.from({ length: 12 }, (_, i) => {
+      const key = monthKey(addMonths(new Date(), i - 11));
       const entrada = transactions
+
         .filter((t) => t.type === "income" && monthKey(t.date) === key)
         .reduce((s, t) => s + num(t.amount), 0);
       const saida = transactions
