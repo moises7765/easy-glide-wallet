@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { checkSignInMethod } from "@/lib/auth.functions";
+import { AuthBackground } from "@/components/AuthBackground";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -146,7 +147,8 @@ function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col justify-center px-6 py-12">
+    <div className="relative isolate flex min-h-screen flex-col justify-center px-6 py-12">
+      <AuthBackground />
       <main className="mx-auto w-full max-w-sm fade-up">
         <div className="mb-10">
           <div className="mb-5 h-11 w-11 rounded-2xl bg-primary" />
