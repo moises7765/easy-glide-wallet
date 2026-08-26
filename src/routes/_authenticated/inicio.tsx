@@ -78,8 +78,9 @@ function Dashboard() {
   }, [transactions, categories, current]);
 
   const flow = useMemo(() => {
+    const year = new Date().getFullYear();
     return Array.from({ length: 12 }, (_, i) => {
-      const key = monthKey(addMonths(new Date(), i - 11));
+      const key = `${year}-${String(i + 1).padStart(2, "0")}`;
       const entrada = transactions
 
         .filter((t) => t.type === "income" && monthKey(t.date) === key)
