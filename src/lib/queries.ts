@@ -176,3 +176,26 @@ export function useSaveFund() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+/** Bulk insert of imported statement transactions. */
+export function useImportTransactions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: Omit<TablesInsert<"transactions">, "user_id">[]) => {
+      if (rows.length === 0) return 0;
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Sessão expirada");
+      const payload = rows.map((r) => ({ ...r, user_id: auth.user!.id }));
+      for (let i = 0; i < payload.length; i += 200) {
+        const { error } = await supabase.from("transactions").insert(payload.slice(i, i + 200) as never);
+        if (error) throw error;
+      }
+      return rows.length;
+    },
+    onSuccess: (count) => {
+      invalidate(qc, "transactions");
+      qc.invalidateQueries();
+      toast.success(`${count} lançamento(s) importado(s)`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
