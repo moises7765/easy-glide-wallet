@@ -72,7 +72,8 @@ export function ImportStatement({
       } else if (ext === "xlsx" || ext === "xls") {
         const XLSX = await import("xlsx");
         const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const sheet = wb.Sheets[wb.SheetNames[0] ?? ""];
+        if (!sheet) throw new Error("planilha vazia");
         const table = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: "" });
         parsed = rowsFromTable(table);
       } else {

@@ -81,7 +81,7 @@ export function parseOFX(text: string): ParsedRow[] {
   const blocks = text.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/gi) ?? [];
   const tag = (block: string, name: string) => {
     const m = new RegExp(`<${name}>([^<\r\n]*)`, "i").exec(block);
-    return m ? m[1].trim() : "";
+    return m?.[1] ? m[1].trim() : "";
   };
   for (const block of blocks) {
     const date = parseAnyDate(tag(block, "DTPOSTED"));
@@ -149,14 +149,14 @@ export function rowsFromTable(table: unknown[][]): ParsedRow[] {
   // find header row within the first 10 lines
   let headerIndex = 0;
   for (let i = 0; i < Math.min(10, clean.length); i++) {
-    const cells = clean[i].map(norm);
+    const cells = (clean[i] ?? []).map(norm);
     if (cells.some((c) => DATE_KEYS.includes(c) || c.startsWith("data")) &&
         cells.some((c) => AMOUNT_KEYS.some((k) => c.includes(k)) || DEBIT_KEYS.some((k) => c.includes(k)))) {
       headerIndex = i;
       break;
     }
   }
-  const headers = clean[headerIndex].map((c) => String(c ?? ""));
+  const headers = (clean[headerIndex] ?? []).map((c) => String(c ?? ""));
   const iDate = pickIndex(headers, DATE_KEYS);
   const iDesc = pickIndex(headers, DESC_KEYS);
   const iAmount = pickIndex(headers, AMOUNT_KEYS);
@@ -200,7 +200,7 @@ export function parseCSV(text: string): ParsedRow[] {
   const sample = lines.slice(0, 5).join("\n");
   const delimiter = [";", ",", "\t", "|"]
     .map((d) => ({ d, n: sample.split(d).length }))
-    .sort((a, b) => b.n - a.n)[0].d;
+    .sort((a, b) => b.n - a.n)[0]!.d;
   return rowsFromTable(lines.map((l) => splitCsvLine(l, delimiter)));
 }
 
