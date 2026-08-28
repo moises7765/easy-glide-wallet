@@ -1,5 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, CreditCard, LogOut, PiggyBank, Target, Wallet } from "lucide-react";
+import { ChevronRight, CreditCard, FileUp, LogOut, PiggyBank, Target, Wallet } from "lucide-react";
+import { useState } from "react";
+
+import { ImportStatement } from "@/components/ImportStatement";
 
 import { PageHeader, Panel } from "@/components/finance-ui";
 import { Button } from "@/components/ui/button";
@@ -20,6 +23,7 @@ export const Route = createFileRoute("/_authenticated/mais")({
 });
 
 function MorePage() {
+  const [importOpen, setImportOpen] = useState(false);
   const { email } = useUser();
   const { data: assets = [] } = useRows("assets");
   const { data: purchases = [] } = useRows("installment_purchases");
@@ -69,6 +73,18 @@ function MorePage() {
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </Link>
           ))}
+
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors active:bg-secondary/60"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
+              <FileUp className="h-4 w-4 text-primary" />
+            </span>
+            <span className="flex-1 text-sm font-medium">Importar extrato</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
         </Panel>
 
         <Button
@@ -82,6 +98,8 @@ function MorePage() {
           <LogOut className="mr-2 h-4 w-4" /> Sair da conta
         </Button>
       </div>
+
+      <ImportStatement open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
