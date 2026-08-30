@@ -61,17 +61,73 @@ export function parseAnyDate(raw: unknown): string | null {
   return Number.isNaN(d.getTime()) ? null : toISODate(d);
 }
 
+const stripAccents = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const TRANSFER_HINTS = [
+  "dinheiro reservado",
+  "dinheiro retirado",
+  "separar dinheiro",
+  "guardar dinheiro",
+  "reserva de emergencia",
+  "reserva emergencia",
+  "cofrinho",
+  "caixinha",
+  "transferencia entre contas",
+  "transferencia entre saldos",
+  "entre suas contas",
+  "saldo em conta",
+  "movimentacao entre saldos",
+  "retirada da reserva",
+  "aporte na reserva",
+];
+
+const INVESTMENT_HINTS = [
+  "investimento",
+  "aplicacao",
+  "aplicado",
+  "resgate",
+  "rendimento",
+  "rendimentos",
+  "cdb",
+  "tesouro",
+  "fundo",
+  "renda fixa",
+  "acoes",
+];
+
+/** Classifies a statement line into a real income/expense, an internal transfer or an investment move. */
+export function classifyFlow(description: string, amount: number): RowFlow {
+  const d = stripAccents(description);
+  if (TRANSFER_HINTS.some((h) => d.includes(h))) return "transfer";
+  if (INVESTMENT_HINTS.some((h) => d.includes(h))) return "investment";
+  return amount < 0 ? "expense" : "income";
+}
+
+export const FLOW_LABEL: Record<RowFlow, string> = {
+  income: "Receita",
+  expense: "Despesa",
+  transfer: "Transferência interna",
+  investment: "Investimento",
+};
+
 function makeRow(date: string, description: string, amount: number, fitid?: string | null): ParsedRow {
+  const desc = description.replace(/\s+/g, " ").trim() || "Lançamento importado";
+  const flow = classifyFlow(desc, amount);
   return {
     id: nextId(),
     date,
-    description: description.replace(/\s+/g, " ").trim() || "Lançamento importado",
+    description: desc,
     amount: Math.abs(amount),
     type: amount < 0 ? "expense" : "income",
+    flow,
     categoryId: null,
     cardId: null,
     paymentMethod: "transferencia",
-    selected: true,
+    selected: flow !== "transfer",
     duplicate: false,
     fitid: fitid ?? null,
   };
