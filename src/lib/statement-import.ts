@@ -297,21 +297,100 @@ export function suggestCard(description: string, cards: { id: string; name: stri
   return match?.id ?? null;
 }
 
-const dupKey = (date: string, amount: number, type: string) =>
-  `${date}|${type}|${Math.round(Math.abs(amount) * 100)}`;
+const dupKey = (date: string, amount: number, type: string, description?: string | null) =>
+  `${date}|${type}|${Math.round(Math.abs(amount) * 100)}|${stripAccents(String(description ?? "")).slice(0, 24)}`;
 
-/** Marks rows that already exist in the history (same date, value and type) or repeat inside the file. */
+/** Marks rows that already exist in the history (same date, value, type and description) or repeat inside the file. */
 export function markDuplicates(rows: ParsedRow[], existing: Transaction[]): ParsedRow[] {
-  const known = new Set(existing.map((t) => dupKey(t.date.slice(0, 10), Number(t.amount), t.type)));
+  const known = new Set(
+    existing.map((t) => dupKey(t.date.slice(0, 10), Number(t.amount), t.type, t.description)),
+  );
+  const loose = new Set(existing.map((t) => dupKey(t.date.slice(0, 10), Number(t.amount), t.type)));
   const seen = new Set<string>();
   return rows.map((r) => {
-    const key = dupKey(r.date, r.amount, r.type);
-    const duplicate = known.has(key) || seen.has(key);
+    const key = dupKey(r.date, r.amount, r.type, r.description);
+    const duplicate = known.has(key) || seen.has(key) || loose.has(dupKey(r.date, r.amount, r.type));
     seen.add(key);
-    return { ...r, duplicate, selected: !duplicate };
+    return { ...r, duplicate, selected: !duplicate && r.flow !== "transfer" };
   });
 }
 
 export function sortRows(rows: ParsedRow[]) {
   return [...rows].sort((a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime());
 }
+
+/* ---------------- PDF (extrato Mercado Pago e similares) ---------------- */
+
+const MONTHS_PT: Record<string, string> = {
+  jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06",
+  jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12",
+};
+
+const MONEY_RE = /-?\s?R?\$?\s?-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\s?R?\$?\s?\d+,\d{2}/g;
+
+function pdfDate(line: string): { iso: string; rest: string } | null {
+  let m = /^(\d{2})[/.-](\d{2})[/.-](\d{4})/.exec(line);
+  if (m) return { iso: `${m[3]}-${m[2]}-${m[1]}`, rest: line.slice(m[0].length) };
+  m = /^(\d{1,2})\s+de\s+([a-zç]{3,})[a-zç.]*\.?\s+(?:de\s+)?(\d{4})/i.exec(stripAccents(line));
+  if (m) {
+    const mm = MONTHS_PT[stripAccents(m[2] ?? "").slice(0, 3)];
+    if (mm) {
+      return { iso: `${m[3]}-${mm}-${String(m[1]).padStart(2, "0")}`, rest: line.slice(m[0].length) };
+    }
+  }
+  m = /^(\d{1,2})\s+([a-zç]{3})[a-zç.]*\.?\s+(\d{4})/i.exec(stripAccents(line));
+  if (m) {
+    const mm = MONTHS_PT[stripAccents(m[2] ?? "")];
+    if (mm) return { iso: `${m[3]}-${mm}-${String(m[1]).padStart(2, "0")}`, rest: line.slice(m[0].length) };
+  }
+  return null;
+}
+
+/** Builds rows out of the text lines of a bank statement PDF. */
+export function rowsFromPdfLines(lines: string[]): ParsedRow[] {
+  const rows: ParsedRow[] = [];
+  let pending: { date: string; text: string } | null = null;
+
+  const flush = () => {
+    if (!pending) return;
+    const money = pending.text.match(MONEY_RE) ?? [];
+    if (money.length > 0) {
+      // in Mercado Pago the last column is the running balance; the value comes right before it
+      const valueToken = money.length >= 2 ? money[money.length - 2]! : money[0]!;
+      const amount = parseAmount(valueToken);
+      let description = pending.text;
+      for (const token of money) description = description.replace(token, " ");
+      description = description
+        .replace(/\b\d{8,}\b/g, " ") // operation id
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!Number.isNaN(amount) && amount !== 0) {
+        rows.push(makeRow(pending.date, description, amount));
+      }
+    }
+    pending = null;
+  };
+
+  for (const raw of lines) {
+    const line = raw.replace(/\s+/g, " ").trim();
+    if (!line) continue;
+    const low = stripAccents(line);
+    if (/^(data|descricao|saldo|detalhe|extrato|periodo|total)\b/.test(low) && !MONEY_RE.test(line)) {
+      MONEY_RE.lastIndex = 0;
+      continue;
+    }
+    MONEY_RE.lastIndex = 0;
+
+    const parsed = pdfDate(line);
+    if (parsed) {
+      flush();
+      pending = { date: parsed.iso, text: parsed.rest };
+    } else if (pending) {
+      pending = { date: pending.date, text: `${pending.text} ${line}` };
+    }
+  }
+  flush();
+
+  return rows;
+}
+
