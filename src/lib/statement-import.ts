@@ -83,6 +83,8 @@ const TRANSFER_HINTS = [
   "movimentacao entre saldos",
   "retirada da reserva",
   "aporte na reserva",
+  "pagar cartao",
+  "acompanhar evolucao",
 ];
 
 const INVESTMENT_HINTS = [
@@ -346,8 +348,34 @@ function pdfDate(line: string): { iso: string; rest: string } | null {
   return null;
 }
 
+/**
+ * Mercado Pago style: each record starts with DD-MM-YYYY, then a (multi line)
+ * description, a 12 digit operation id, the amount and the running balance.
+ * Runs over the whole joined text so records broken across lines still match.
+ */
+export function rowsFromMercadoPagoText(text: string): ParsedRow[] {
+  const blob = text.replace(/\s+/g, " ");
+  const re =
+    /(\d{2})[-/.](\d{2})[-/.](\d{4})\s+(.*?)\s*(\d{10,14})\s+(R\$\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s+(R\$\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2})/g;
+  const rows: ParsedRow[] = [];
+  for (const m of blob.matchAll(re)) {
+    const iso = `${m[3]}-${m[2]}-${m[1]}`;
+    const amount = parseAmount(m[6] ?? "");
+    if (Number.isNaN(amount) || amount === 0) continue;
+    const description = String(m[4] ?? "")
+      .replace(/\b\d{2}[-/.]\d{2}[-/.]\d{4}\b/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    rows.push(makeRow(iso, description, amount));
+  }
+  return rows;
+}
+
 /** Builds rows out of the text lines of a bank statement PDF. */
 export function rowsFromPdfLines(lines: string[]): ParsedRow[] {
+  const mp = rowsFromMercadoPagoText(lines.join("\n"));
+  if (mp.length > 0) return mp;
+
   const rows: ParsedRow[] = [];
   let pending: { date: string; text: string } | null = null;
 
