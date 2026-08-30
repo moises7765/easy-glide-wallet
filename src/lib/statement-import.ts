@@ -83,6 +83,8 @@ const TRANSFER_HINTS = [
   "movimentacao entre saldos",
   "retirada da reserva",
   "aporte na reserva",
+  "pagar cartao",
+  "acompanhar evolucao",
 ];
 
 const INVESTMENT_HINTS = [
