@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { brl, PAYMENT_METHODS } from "@/lib/finance";
 import { useImportTransactions, useRows } from "@/lib/queries";
 import {
+  FLOW_LABEL,
   markDuplicates,
   parseCSV,
   parseOFX,
+  rowsFromPdfLines,
   rowsFromTable,
   sortRows,
   suggestCard,
@@ -38,12 +40,13 @@ export function ImportStatement({
   const { data: transactions = [] } = useRows("transactions");
   const importTx = useImportTransactions();
 
-  const selected = useMemo(() => rows.filter((r) => r.selected), [rows]);
+  const selected = useMemo(() => rows.filter((r) => r.selected && r.flow !== "transfer"), [rows]);
   const totals = useMemo(
     () => ({
       income: selected.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0),
       expense: selected.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount, 0),
       duplicates: rows.filter((r) => r.duplicate).length,
+      transfers: rows.filter((r) => r.flow === "transfer").length,
     }),
     [rows, selected],
   );
@@ -67,6 +70,9 @@ export function ImportStatement({
       let parsed: ParsedRow[] = [];
       if (ext === "ofx" || ext === "qfx") {
         parsed = parseOFX(await file.text());
+      } else if (ext === "pdf") {
+        const { extractPdfLines } = await import("@/lib/pdf-statement");
+        parsed = rowsFromPdfLines(await extractPdfLines(await file.arrayBuffer()));
       } else if (ext === "csv" || ext === "txt") {
         parsed = parseCSV(await file.text());
       } else if (ext === "xlsx" || ext === "xls") {
@@ -77,7 +83,7 @@ export function ImportStatement({
         const table = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: "" });
         parsed = rowsFromTable(table);
       } else {
-        toast.error("Formato não suportado. Use OFX, CSV ou XLSX.");
+        toast.error("Formato não suportado. Use PDF, OFX, CSV ou XLSX.");
         return;
       }
 
@@ -133,7 +139,7 @@ export function ImportStatement({
         <input
           ref={inputRef}
           type="file"
-          accept=".ofx,.qfx,.csv,.txt,.xlsx,.xls"
+          accept=".pdf,.ofx,.qfx,.csv,.txt,.xlsx,.xls"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -156,7 +162,7 @@ export function ImportStatement({
               <span className="text-sm font-medium">
                 {loading ? "Lendo arquivo..." : "Selecionar arquivo"}
               </span>
-              <span className="text-xs text-muted-foreground">OFX, CSV ou XLSX</span>
+              <span className="text-xs text-muted-foreground">PDF, OFX, CSV ou XLSX</span>
             </button>
             <p className="text-center text-xs text-muted-foreground">
               O arquivo é lido no próprio aparelho; nada é enviado para serviços externos.
@@ -173,6 +179,11 @@ export function ImportStatement({
                 {selected.length} de {rows.length} selecionados · entradas {brl(totals.income)} · saídas{" "}
                 {brl(totals.expense)}
               </p>
+              {totals.transfers > 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {totals.transfers} transferência(s) interna(s) fora do cálculo
+                </p>
+              ) : null}
               {totals.duplicates > 0 ? (
                 <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                   <AlertTriangle className="h-3 w-3" /> {totals.duplicates} possível(is) duplicado(s)
@@ -193,7 +204,8 @@ export function ImportStatement({
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
-                      checked={r.selected}
+                      checked={r.selected && r.flow !== "transfer"}
+                      disabled={r.flow === "transfer"}
                       onChange={(e) => patch(r.id, { selected: e.target.checked })}
                       className="h-4 w-4 accent-[hsl(var(--primary))]"
                       aria-label="Incluir lançamento"
@@ -208,6 +220,11 @@ export function ImportStatement({
                         {r.date.split("-").reverse().join("/")}
                         {r.duplicate ? " · possível duplicado" : ""}
                       </p>
+                      {r.flow === "transfer" || r.flow === "investment" ? (
+                        <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {FLOW_LABEL[r.flow]}
+                        </span>
+                      ) : null}
                     </button>
                     <span
                       className={cn(
@@ -252,18 +269,27 @@ export function ImportStatement({
                           className="mt-1"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-2 rounded-full bg-secondary p-1">
-                        {(["expense", "income"] as const).map((t) => (
+                      <div className="grid grid-cols-3 gap-2 rounded-full bg-secondary p-1">
+                        {(["expense", "income", "transfer"] as const).map((t) => (
                           <button
                             key={t}
                             type="button"
-                            onClick={() => patch(r.id, { type: t, categoryId: null })}
+                            onClick={() =>
+                              patch(
+                                r.id,
+                                t === "transfer"
+                                  ? { flow: "transfer", selected: false }
+                                  : { type: t, flow: t, categoryId: null, selected: true },
+                              )
+                            }
                             className={cn(
                               "rounded-full py-1.5 text-xs font-medium transition-colors",
-                              r.type === t ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                              (t === "transfer" ? r.flow === "transfer" : r.flow !== "transfer" && r.type === t)
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground",
                             )}
                           >
-                            {t === "expense" ? "Despesa" : "Receita"}
+                            {t === "expense" ? "Despesa" : t === "income" ? "Receita" : "Interna"}
                           </button>
                         ))}
                       </div>
