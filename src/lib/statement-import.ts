@@ -1,12 +1,15 @@
 import { parseDate, toISODate } from "@/lib/finance";
 import type { Transaction, Category } from "@/lib/finance";
 
+export type RowFlow = "income" | "expense" | "transfer" | "investment";
+
 export type ParsedRow = {
   id: string;
   date: string;
   description: string;
   amount: number;
   type: "expense" | "income";
+  flow: RowFlow;
   categoryId: string | null;
   cardId: string | null;
   paymentMethod: string;
