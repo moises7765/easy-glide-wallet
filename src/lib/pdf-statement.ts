@@ -7,7 +7,7 @@ export async function extractPdfLines(data: ArrayBuffer): Promise<string[]> {
   const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
-  const doc = await pdfjs.getDocument({ data, isEvalSupported: false }).promise;
+  const doc = await pdfjs.getDocument({ data }).promise;
   const lines: string[] = [];
 
   for (let p = 1; p <= doc.numPages; p++) {
@@ -39,6 +39,6 @@ export async function extractPdfLines(data: ArrayBuffer): Promise<string[]> {
     page.cleanup();
   }
 
-  await doc.destroy();
+  await doc.cleanup();
   return lines;
 }
