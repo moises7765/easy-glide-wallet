@@ -344,6 +344,15 @@ function parsePdfMoney(raw: string): number {
   return parseAmount(normalizePdfText(raw).replace(/-\s+/g, "-"));
 }
 
+function cleanPdfDescription(text: string) {
+  return text
+    .replace(/(?:data\s+)?descri[cç][aã]o\s+id\s+da\s+opera[cç][aã]o\s+valor\s+saldo/gi, " ")
+    .replace(/\b(?:data|descri[cç][aã]o|id da opera[cç][aã]o|valor|saldo)\b/gi, " ")
+    .replace(MONEY_RE, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function pdfDate(line: string): { iso: string; rest: string } | null {
   let m = /^(\d{2})[/.-](\d{2})[/.-](\d{4})/.exec(line);
   if (m) return { iso: `${m[3]}-${m[2]}-${m[1]}`, rest: line.slice(m[0].length) };
@@ -406,12 +415,20 @@ export function rowsFromMercadoPagoText(text: string): ParsedRow[] {
     const amount = parsePdfMoney(valueToken ?? "");
     if (Number.isNaN(amount) || amount === 0) continue;
 
-    description = description
-      .replace(/(?:\d\s*){10,14}\s*$/g, " ")
-      .replace(MONEY_RE, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+    const allMoneyMatches = [...record.matchAll(MONEY_RE)];
     MONEY_RE.lastIndex = 0;
+    const lastMoney = allMoneyMatches[allMoneyMatches.length - 1];
+    const trailingDescription = lastMoney?.index === undefined
+      ? ""
+      : cleanPdfDescription(record.slice(lastMoney.index + lastMoney[0].length));
+
+    description = cleanPdfDescription(description
+      .replace(/(?:\d\s*){10,14}\s*$/g, " ")
+    );
+    MONEY_RE.lastIndex = 0;
+    if (trailingDescription && !description.includes(trailingDescription)) {
+      description = `${description} ${trailingDescription}`.trim();
+    }
     if (!description || /^(data|descricao|descrição|id da operacao|id da operação|valor|saldo)$/i.test(description)) continue;
 
     const day = dateMatch[1];
