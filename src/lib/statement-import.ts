@@ -328,7 +328,21 @@ const MONTHS_PT: Record<string, string> = {
   jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12",
 };
 
-const MONEY_RE = /-?\s?R?\$?\s?-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\s?R?\$?\s?\d+,\d{2}/g;
+const MONEY_RE = /(?:-\s*)?(?:R\s*\$\s*)?(?:-\s*)?\d[\d\s.]*(?:,\s*\d{2})(?!\d)/gi;
+
+function normalizePdfText(text: string) {
+  return text
+    .normalize("NFKC")
+    .replace(/[−–—]/g, "-")
+    .replace(/R\s*\$/gi, "R$")
+    .replace(/(\d)\s*([,.])\s*(\d)/g, "$1$2$3")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parsePdfMoney(raw: string): number {
+  return parseAmount(normalizePdfText(raw).replace(/-\s+/g, "-"));
+}
 
 function pdfDate(line: string): { iso: string; rest: string } | null {
   let m = /^(\d{2})[/.-](\d{2})[/.-](\d{4})/.exec(line);
@@ -354,22 +368,57 @@ function pdfDate(line: string): { iso: string; rest: string } | null {
  * Runs over the whole joined text so records broken across lines still match.
  */
 export function rowsFromMercadoPagoText(text: string): ParsedRow[] {
-  const blob = text.replace(/\s+/g, " ");
-  const MONEY = String.raw`-?\s*R\$\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2}`;
-  const re = new RegExp(
-    String.raw`(\d{2})[-/.](\d{2})[-/.](\d{4})\s+(.*?)\s*(\d{10,14})\s+(${MONEY})\s+(${MONEY})`,
-    "g",
-  );
+  const blob = normalizePdfText(text);
+  const dateRe = /(\d{2})\s*[-/.]\s*(\d{2})\s*[-/.]\s*(\d{4})/g;
+  const dates = [...blob.matchAll(dateRe)];
   const rows: ParsedRow[] = [];
-  for (const m of blob.matchAll(re)) {
-    const iso = `${m[3]}-${m[2]}-${m[1]}`;
-    const amount = parseAmount(m[6] ?? "");
+
+  for (let index = 0; index < dates.length; index++) {
+    const dateMatch = dates[index];
+    if (!dateMatch || dateMatch.index === undefined) continue;
+    const next = dates[index + 1];
+    const start = dateMatch.index + dateMatch[0].length;
+    const end = next?.index ?? blob.length;
+    let record = blob.slice(start, end).trim();
+
+    // IDs may arrive as one token, digit groups, or individual glyphs. Locate
+    // the operation id before selecting the two monetary columns after it.
+    const idMatch = /(?:\d\s*){10,14}(?=\s+(?:(?:-\s*)?(?:R\$\s*)?(?:-\s*)?\d))/i.exec(record);
+    let description = record;
+    let valuesText = record;
+    if (idMatch?.index !== undefined) {
+      description = record.slice(0, idMatch.index);
+      valuesText = record.slice(idMatch.index + idMatch[0].length);
+    }
+
+    let money = valuesText.match(MONEY_RE) ?? [];
+    MONEY_RE.lastIndex = 0;
+    // Layout variants can place the value columns before the operation ID.
+    if (money.length < 2) {
+      money = record.match(MONEY_RE) ?? [];
+      MONEY_RE.lastIndex = 0;
+    }
+    if (money.length === 0) continue;
+
+    // Mercado Pago has value + running balance. If only one value survived
+    // extraction, it is still preferable to expose it for review than return 0.
+    const valueToken = money.length >= 2 ? money[money.length - 2] : money[0];
+    const amount = parsePdfMoney(valueToken ?? "");
     if (Number.isNaN(amount) || amount === 0) continue;
-    const description = String(m[4] ?? "")
-      .replace(/\b\d{2}[-/.]\d{2}[-/.]\d{4}\b/g, " ")
+
+    description = description
+      .replace(/(?:\d\s*){10,14}\s*$/g, " ")
+      .replace(MONEY_RE, " ")
       .replace(/\s+/g, " ")
       .trim();
-    rows.push(makeRow(iso, description, amount));
+    MONEY_RE.lastIndex = 0;
+    if (!description || /^(data|descricao|descrição|id da operacao|id da operação|valor|saldo)$/i.test(description)) continue;
+
+    const day = dateMatch[1];
+    const month = dateMatch[2];
+    const year = dateMatch[3];
+    if (!day || !month || !year) continue;
+    rows.push(makeRow(`${year}-${month}-${day}`, description, amount));
   }
   return rows;
 }
@@ -388,7 +437,7 @@ export function rowsFromPdfLines(lines: string[]): ParsedRow[] {
     if (money.length > 0) {
       // in Mercado Pago the last column is the running balance; the value comes right before it
       const valueToken = money.length >= 2 ? money[money.length - 2]! : money[0]!;
-      const amount = parseAmount(valueToken);
+       const amount = parsePdfMoney(valueToken);
       let description = pending.text;
       for (const token of money) description = description.replace(token, " ");
       description = description
