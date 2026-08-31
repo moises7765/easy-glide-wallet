@@ -355,8 +355,11 @@ function pdfDate(line: string): { iso: string; rest: string } | null {
  */
 export function rowsFromMercadoPagoText(text: string): ParsedRow[] {
   const blob = text.replace(/\s+/g, " ");
-  const re =
-    /(\d{2})[-/.](\d{2})[-/.](\d{4})\s+(.*?)\s*(\d{10,14})\s+(R\$\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s+(R\$\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2})/g;
+  const MONEY = String.raw`-?\s*R\$\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2}`;
+  const re = new RegExp(
+    String.raw`(\d{2})[-/.](\d{2})[-/.](\d{4})\s+(.*?)\s*(\d{10,14})\s+(${MONEY})\s+(${MONEY})`,
+    "g",
+  );
   const rows: ParsedRow[] = [];
   for (const m of blob.matchAll(re)) {
     const iso = `${m[3]}-${m[2]}-${m[1]}`;
