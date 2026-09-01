@@ -414,6 +414,7 @@ function mercadoPagoBlocks(lines: string[]): MercadoPagoBlock[] {
 
     for (let index = 0; index < dates.length; index++) {
       const match = dates[index];
+      if (!match) continue;
       if (match.index === undefined) continue;
       flush();
       const day = match[1];
@@ -446,7 +447,7 @@ function rowFromMercadoPagoBlock(block: MercadoPagoBlock, allowFallback: boolean
   if (!idMatch && !allowFallback) return null;
 
   const idStart = idMatch?.index;
-  const idEnd = idStart === undefined ? undefined : idStart + idMatch[0].length;
+  const idEnd = idStart === undefined || !idMatch ? undefined : idStart + idMatch[0].length;
   const valuesText = idEnd === undefined ? record : record.slice(idEnd);
   let money = valuesText.match(MONEY_RE) ?? [];
   MONEY_RE.lastIndex = 0;
