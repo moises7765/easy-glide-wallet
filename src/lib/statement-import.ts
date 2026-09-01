@@ -371,73 +371,114 @@ function pdfDate(line: string): { iso: string; rest: string } | null {
   return null;
 }
 
+const MP_DATE_RE = /(\d{2})\s*[-/.]\s*(\d{2})\s*[-/.]\s*(\d{4})/g;
+const MP_ID_RE = /(?:\d[\s\u00ad]*){10,14}/g;
+
+type MercadoPagoBlock = { date: string; parts: string[] };
+
+function looksLikeMercadoPago(lines: string[]) {
+  const text = stripAccents(lines.join(" ").replace(/\s+/g, " "));
+  const hasHeader = text.includes("id da operacao") && text.includes("valor") && text.includes("saldo");
+  const ids = text.match(/\b\d{10,14}\b/g) ?? [];
+  const hasKnownMovement = /(dinheiro reservado|dinheiro retirado|pix recebido|pix enviado|pagamento com qr pix)/.test(text);
+  return hasHeader || (ids.length > 0 && hasKnownMovement);
+}
+
 /**
- * Mercado Pago style: each record starts with DD-MM-YYYY, then a (multi line)
- * description, a 12 digit operation id, the amount and the running balance.
- * Runs over the whole joined text so records broken across lines still match.
+ * Splits Mercado Pago text into stateful records. A date opens a transaction;
+ * every subsequent physical PDF line belongs to it until the next date.
  */
-export function rowsFromMercadoPagoText(text: string): ParsedRow[] {
-  const blob = normalizePdfText(text);
-  const dateRe = /(\d{2})\s*[-/.]\s*(\d{2})\s*[-/.]\s*(\d{4})/g;
-  const dates = [...blob.matchAll(dateRe)];
-  const rows: ParsedRow[] = [];
+function mercadoPagoBlocks(lines: string[]): MercadoPagoBlock[] {
+  const blocks: MercadoPagoBlock[] = [];
+  let current: MercadoPagoBlock | null = null;
 
-  for (let index = 0; index < dates.length; index++) {
-    const dateMatch = dates[index];
-    if (!dateMatch || dateMatch.index === undefined) continue;
-    const next = dates[index + 1];
-    const start = dateMatch.index + dateMatch[0].length;
-    const end = next?.index ?? blob.length;
-    let record = blob.slice(start, end).trim();
+  const flush = () => {
+    if (current) blocks.push(current);
+    current = null;
+  };
 
-    // IDs may arrive as one token, digit groups, or individual glyphs. Locate
-    // the operation id before selecting the two monetary columns after it.
-    const idMatch = /(?:\d\s*){10,14}(?=\s+(?:(?:-\s*)?(?:R\$\s*)?(?:-\s*)?\d))/i.exec(record);
-    let description = record;
-    let valuesText = record;
-    if (idMatch?.index !== undefined) {
-      description = record.slice(0, idMatch.index);
-      valuesText = record.slice(idMatch.index + idMatch[0].length);
+  for (const raw of lines) {
+    const line = raw.normalize("NFKC").replace(/[−–—]/g, "-").replace(/\u00ad/g, "").trim();
+    if (!line) continue;
+
+    MP_DATE_RE.lastIndex = 0;
+    const dates = [...line.matchAll(MP_DATE_RE)];
+    MP_DATE_RE.lastIndex = 0;
+    if (dates.length === 0) {
+      if (current) current.parts.push(line);
+      continue;
     }
 
-    let money = valuesText.match(MONEY_RE) ?? [];
-    MONEY_RE.lastIndex = 0;
-    // Layout variants can place the value columns before the operation ID.
-    if (money.length < 2) {
-      money = record.match(MONEY_RE) ?? [];
-      MONEY_RE.lastIndex = 0;
+    for (let index = 0; index < dates.length; index++) {
+      const match = dates[index];
+      if (match.index === undefined) continue;
+      if (current) {
+        const beforeDate = line.slice(index === 0 ? 0 : (dates[index - 1]?.index ?? 0) + (dates[index - 1]?.[0].length ?? 0), match.index).trim();
+        if (beforeDate) current.parts.push(beforeDate);
+        flush();
+      }
+      const day = match[1];
+      const month = match[2];
+      const year = match[3];
+      if (!day || !month || !year) continue;
+      current = { date: `${year}-${month}-${day}`, parts: [] };
+      const nextStart = dates[index + 1]?.index ?? line.length;
+      const rest = line.slice(match.index + match[0].length, nextStart).trim();
+      if (rest) current.parts.push(rest);
     }
-    if (money.length === 0) continue;
-
-    // Mercado Pago has value + running balance. If only one value survived
-    // extraction, it is still preferable to expose it for review than return 0.
-    const valueToken = money.length >= 2 ? money[money.length - 2] : money[0];
-    const amount = parsePdfMoney(valueToken ?? "");
-    if (Number.isNaN(amount) || amount === 0) continue;
-
-    const allMoneyMatches = [...record.matchAll(MONEY_RE)];
-    MONEY_RE.lastIndex = 0;
-    const lastMoney = allMoneyMatches[allMoneyMatches.length - 1];
-    const trailingDescription = lastMoney?.index === undefined
-      ? ""
-      : cleanPdfDescription(record.slice(lastMoney.index + lastMoney[0].length));
-
-    description = cleanPdfDescription(description
-      .replace(/(?:\d\s*){10,14}\s*$/g, " ")
-    );
-    MONEY_RE.lastIndex = 0;
-    if (trailingDescription && !description.includes(trailingDescription)) {
-      description = `${description} ${trailingDescription}`.trim();
-    }
-    if (!description || /^(data|descricao|descrição|id da operacao|id da operação|valor|saldo)$/i.test(description)) continue;
-
-    const day = dateMatch[1];
-    const month = dateMatch[2];
-    const year = dateMatch[3];
-    if (!day || !month || !year) continue;
-    rows.push(makeRow(`${year}-${month}-${day}`, description, amount));
   }
-  return rows;
+  flush();
+  return blocks;
+}
+
+function rowFromMercadoPagoBlock(block: MercadoPagoBlock, allowFallback: boolean): ParsedRow | null {
+  const record = normalizePdfText(block.parts.join(" "));
+  if (!record) return null;
+
+  const idMatches = [...record.matchAll(MP_ID_RE)];
+  MP_ID_RE.lastIndex = 0;
+  const idMatch = idMatches.find((candidate) => {
+    if (candidate.index === undefined) return false;
+    const after = record.slice(candidate.index + candidate[0].length);
+    const values = after.match(MONEY_RE) ?? [];
+    MONEY_RE.lastIndex = 0;
+    return values.length > 0;
+  });
+  if (!idMatch && !allowFallback) return null;
+
+  const idStart = idMatch?.index;
+  const idEnd = idStart === undefined ? undefined : idStart + idMatch[0].length;
+  const valuesText = idEnd === undefined ? record : record.slice(idEnd);
+  let money = valuesText.match(MONEY_RE) ?? [];
+  MONEY_RE.lastIndex = 0;
+  if (money.length === 0 && idMatch) {
+    money = record.match(MONEY_RE) ?? [];
+    MONEY_RE.lastIndex = 0;
+  }
+  if (money.length === 0) return null;
+
+  // The last two monetary fields are Valor and Saldo. Never use Saldo as the
+  // transaction amount when both columns survived PDF extraction.
+  const valueToken = money.length >= 2 ? money[money.length - 2] : money[0];
+  const amount = parsePdfMoney(valueToken ?? "");
+  if (Number.isNaN(amount) || amount === 0) return null;
+
+  const descriptionEnd = idStart ?? record.search(MONEY_RE);
+  MONEY_RE.lastIndex = 0;
+  const description = cleanPdfDescription(record.slice(0, descriptionEnd < 0 ? record.length : descriptionEnd));
+  if (!description || /^(data|descricao|descrição|id da operacao|id da operação|valor|saldo)$/i.test(description)) return null;
+
+  const fitid = idMatch?.[0].replace(/\D/g, "") || null;
+  return makeRow(block.date, description, amount, fitid);
+}
+
+/** Parses Mercado Pago records without requiring date, description, ID and values on one line. */
+export function rowsFromMercadoPagoText(text: string): ParsedRow[] {
+  const lines = text.split(/\r?\n/);
+  const detected = looksLikeMercadoPago(lines);
+  return mercadoPagoBlocks(lines)
+    .map((block) => rowFromMercadoPagoBlock(block, detected))
+    .filter((row): row is ParsedRow => row !== null);
 }
 
 /** Builds rows out of the text lines of a bank statement PDF. */
