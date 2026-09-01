@@ -409,14 +409,13 @@ function mercadoPagoBlocks(lines: string[]): MercadoPagoBlock[] {
       continue;
     }
 
+    const prefix = line.slice(0, dates[0]?.index ?? 0).trim();
+    if (prefix && current) current.parts.push(prefix);
+
     for (let index = 0; index < dates.length; index++) {
       const match = dates[index];
       if (match.index === undefined) continue;
-      if (current) {
-        const beforeDate = line.slice(index === 0 ? 0 : (dates[index - 1]?.index ?? 0) + (dates[index - 1]?.[0].length ?? 0), match.index).trim();
-        if (beforeDate) current.parts.push(beforeDate);
-        flush();
-      }
+      flush();
       const day = match[1];
       const month = match[2];
       const year = match[3];
@@ -476,6 +475,7 @@ function rowFromMercadoPagoBlock(block: MercadoPagoBlock, allowFallback: boolean
 export function rowsFromMercadoPagoText(text: string): ParsedRow[] {
   const lines = text.split(/\r?\n/);
   const detected = looksLikeMercadoPago(lines);
+  if (!detected) return [];
   return mercadoPagoBlocks(lines)
     .map((block) => rowFromMercadoPagoBlock(block, detected))
     .filter((row): row is ParsedRow => row !== null);
