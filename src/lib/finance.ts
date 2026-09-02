@@ -88,6 +88,19 @@ export function formatDayMonth(value: string) {
   return parseDate(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 }
 
+/**
+ * Month shown on the dashboard: the current calendar month when it has
+ * transactions, otherwise the most recent month with data — so imported
+ * statements from a previous month still appear in the indicators.
+ */
+export function displayMonthKey(transactions: { date: string }[]) {
+  const nowKey = monthKey(new Date());
+  if (transactions.length === 0 || transactions.some((t) => monthKey(t.date) === nowKey)) {
+    return nowKey;
+  }
+  return transactions.map((t) => monthKey(t.date)).sort().at(-1) ?? nowKey;
+}
+
 /** Schedule of every installment of a purchase. */
 export type InstallmentLine = {
   purchase: InstallmentPurchase;
