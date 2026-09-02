@@ -207,9 +207,9 @@ export function rowsFromTable(table: unknown[][]): ParsedRow[] {
   const clean = table.filter((r) => r.some((c) => String(c ?? "").trim() !== ""));
   if (clean.length === 0) return [];
 
-  // find header row within the first 10 lines
-  let headerIndex = 0;
-  for (let i = 0; i < Math.min(10, clean.length); i++) {
+  // find header row within the first 15 lines
+  let headerIndex = -1;
+  for (let i = 0; i < Math.min(15, clean.length); i++) {
     const cells = (clean[i] ?? []).map(norm);
     if (cells.some((c) => DATE_KEYS.includes(c) || c.startsWith("data")) &&
         cells.some((c) => AMOUNT_KEYS.some((k) => c.includes(k)) || DEBIT_KEYS.some((k) => c.includes(k)))) {
@@ -217,13 +217,26 @@ export function rowsFromTable(table: unknown[][]): ParsedRow[] {
       break;
     }
   }
+  if (headerIndex < 0) headerIndex = 0;
   const headers = (clean[headerIndex] ?? []).map((c) => String(c ?? ""));
+  const normalizedHeaders = headers.map(norm);
   const iDate = pickIndex(headers, DATE_KEYS);
   const iDesc = pickIndex(headers, DESC_KEYS);
-  const iAmount = pickIndex(headers, AMOUNT_KEYS);
   const iDebit = pickIndex(headers, DEBIT_KEYS);
   const iCredit = pickIndex(headers, CREDIT_KEYS);
   const iType = pickIndex(headers, TYPE_KEYS);
+
+  // Mercado Pago export: "Data, Descrição, ID da operação, Valor (R$), Saldo (R$), Tipo".
+  // The amount must come ONLY from the "Valor" column — never from "Saldo".
+  const isMercadoPago =
+    normalizedHeaders.some((h) => h.includes("id da operacao")) &&
+    normalizedHeaders.some((h) => h.includes("saldo"));
+  let iAmount = pickIndex(headers, AMOUNT_KEYS);
+  if (iAmount >= 0 && normalizedHeaders[iAmount]?.includes("saldo")) iAmount = -1;
+  if (isMercadoPago) {
+    const iValor = normalizedHeaders.findIndex((h) => h.startsWith("valor"));
+    if (iValor >= 0) iAmount = iValor;
+  }
 
   const rows: ParsedRow[] = [];
   for (const raw of clean.slice(headerIndex + 1)) {
@@ -249,7 +262,12 @@ export function rowsFromTable(table: unknown[][]): ParsedRow[] {
     }
 
     const description = iDesc >= 0 ? String(raw[iDesc] ?? "") : "";
-    rows.push(makeRow(date, description, amount));
+    // fitid from the operation ID column helps duplicate detection across PDF/XLSX imports
+    const fitid =
+      isMercadoPago && raw.length >= 3 && /^\d{10,14}$/.test(String(raw[2] ?? "").trim())
+        ? String(raw[2]).trim()
+        : null;
+    rows.push(makeRow(date, description, amount, fitid));
   }
   return rows;
 }
