@@ -82,6 +82,50 @@ export type Database = {
           },
         ]
       }
+      card_invoice_payments: {
+        Row: {
+          amount: number
+          card_id: string
+          created_at: string
+          due_date: string
+          id: string
+          invoice_key: string
+          paid_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          card_id: string
+          created_at?: string
+          due_date: string
+          id?: string
+          invoice_key: string
+          paid_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          card_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_key?: string
+          paid_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_invoice_payments_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cards: {
         Row: {
           brand: string | null
@@ -90,6 +134,7 @@ export type Database = {
           created_at: string
           due_day: number
           id: string
+          invoice_alerts_enabled: boolean
           limit_total: number
           name: string
           updated_at: string
@@ -102,6 +147,7 @@ export type Database = {
           created_at?: string
           due_day?: number
           id?: string
+          invoice_alerts_enabled?: boolean
           limit_total?: number
           name: string
           updated_at?: string
@@ -114,6 +160,7 @@ export type Database = {
           created_at?: string
           due_day?: number
           id?: string
+          invoice_alerts_enabled?: boolean
           limit_total?: number
           name?: string
           updated_at?: string
