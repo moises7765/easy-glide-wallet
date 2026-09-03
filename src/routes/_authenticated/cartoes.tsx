@@ -1,23 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, BellOff, BellRing, Check, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { BottomSheet, EmptyState, PageHeader, Panel } from "@/components/finance-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  addMonths,
   brl,
-  cardInvoice,
+  buildCardInvoices,
   cardUsed,
-  monthKey,
+  currentInvoice,
   monthLabel,
-  nextMonthKeys,
   num,
   pct,
   type Card,
+  type CardInvoice,
 } from "@/lib/finance";
+import {
+  alertsForInvoice,
+  clearAlertsFor,
+  dispatchAlerts,
+  notificationPermission,
+  requestNotificationPermission,
+  type InvoiceAlert,
+} from "@/lib/invoice-notifications";
 import { useCreate, useRemove, useRows, useUpdate } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
@@ -39,15 +47,46 @@ const EMPTY: Omit<Card, "id" | "user_id" | "created_at" | "updated_at"> = {
   limit_total: 5000,
   closing_day: 3,
   due_day: 10,
+  invoice_alerts_enabled: true,
 };
+
+const dayMonth = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
 function CardsPage() {
   const { data: cards = [] } = useRows("cards");
   const { data: transactions = [] } = useRows("transactions");
   const { data: purchases = [] } = useRows("installment_purchases");
+  const { data: payments = [] } = useRows("card_invoice_payments");
   const [editing, setEditing] = useState<Card | "new" | null>(null);
 
-  const current = monthKey(new Date());
+  const payInvoice = useCreate("card_invoice_payments", "Fatura marcada como paga");
+  const unpayInvoice = useRemove("card_invoice_payments", "Pagamento desfeito");
+  const updateCard = useUpdate("cards", "Cartão atualizado");
+
+  const invoicesByCard = useMemo(
+    () =>
+      new Map(
+        cards.map((card) => [card.id, buildCardInvoices(card, transactions, purchases, payments)]),
+      ),
+    [cards, transactions, purchases, payments],
+  );
+
+  const alerts = useMemo(() => {
+    const list: InvoiceAlert[] = [];
+    for (const card of cards) {
+      if (!card.invoice_alerts_enabled) continue;
+      for (const invoice of invoicesByCard.get(card.id) ?? []) {
+        list.push(...alertsForInvoice(card.id, card.name, invoice));
+      }
+    }
+    return list;
+  }, [cards, invoicesByCard]);
+
+  const [permission, setPermission] = useState<string>("default");
+  useEffect(() => setPermission(notificationPermission()), []);
+  useEffect(() => {
+    if (alerts.length > 0) dispatchAlerts(alerts, permission === "granted");
+  }, [alerts, permission]);
 
   return (
     <div className="space-y-4">
@@ -61,6 +100,46 @@ function CardsPage() {
         }
       />
 
+      {alerts.length > 0 ? (
+        <div className="space-y-2 px-5">
+          {alerts.map((a) => (
+            <div
+              key={a.id}
+              className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <div className="text-sm">
+                <p className="font-medium">{a.title}</p>
+                <p className="text-xs text-muted-foreground">{a.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {cards.length > 0 && permission !== "granted" && permission !== "unsupported" ? (
+        <div className="px-5">
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-2xl border border-border p-3 text-left text-sm"
+            onClick={async () => {
+              const result = await requestNotificationPermission();
+              setPermission(result);
+              if (result === "denied") toast.error("Notificações bloqueadas pelo navegador");
+              if (result === "granted") toast.success("Avisos de fatura ativados");
+            }}
+          >
+            <BellRing className="h-4 w-4 text-primary" />
+            <span>
+              Ativar avisos de vencimento
+              <span className="block text-xs text-muted-foreground">
+                Lembretes 5 dias antes, 1 dia antes e no dia.
+              </span>
+            </span>
+          </button>
+        </div>
+      ) : null}
+
       {cards.length === 0 ? (
         <div className="px-5">
           <EmptyState title="Nenhum cartão" description="Cadastre seu Nubank para começar." />
@@ -68,10 +147,30 @@ function CardsPage() {
       ) : null}
 
       {cards.map((card) => {
-        const invoice = cardInvoice(card.id, current, transactions, purchases);
-        const used = cardUsed(card.id, transactions, purchases);
+        const invoices = invoicesByCard.get(card.id) ?? [];
+        const focus = currentInvoice(invoices);
+        const used = cardUsed(card.id, transactions, purchases, card, payments);
         const available = Math.max(0, num(card.limit_total) - used);
-        const months = nextMonthKeys(6, addMonths(new Date(), 1));
+        const pending = invoices.filter((i) => !i.paid && i.amount > 0.005);
+        const upcoming = invoices.filter((i) => !pending.includes(i)).slice(0, 6);
+
+        const togglePaid = async (invoice: CardInvoice) => {
+          const existing = payments.find(
+            (p) => p.card_id === card.id && p.invoice_key === invoice.key,
+          );
+          if (existing) {
+            await unpayInvoice.mutateAsync(existing.id);
+            return;
+          }
+          await payInvoice.mutateAsync({
+            card_id: card.id,
+            invoice_key: invoice.key,
+            due_date: `${invoice.key}-${String(invoice.dueDate.getDate()).padStart(2, "0")}`,
+            amount: invoice.amount,
+          });
+          clearAlertsFor(card.id, invoice.key);
+        };
+
         return (
           <div key={card.id} className="px-5">
             <Panel className="space-y-4">
@@ -92,10 +191,14 @@ function CardsPage() {
                     Editar
                   </button>
                 </div>
-                <p className="mt-6 text-xs opacity-80">Fatura atual</p>
-                <p className="text-3xl font-semibold tabular-nums">{brl(invoice)}</p>
+                <p className="mt-6 text-xs opacity-80">
+                  {focus ? (focus.overdue ? "Fatura vencida" : "Fatura em aberto") : "Fatura atual"}
+                </p>
+                <p className="text-3xl font-semibold tabular-nums">{brl(focus?.amount ?? 0)}</p>
                 <p className="mt-2 text-xs opacity-80">
-                  Fecha dia {card.closing_day} · Vence dia {card.due_day}
+                  {focus
+                    ? `Fecha ${dayMonth(focus.closingDate)} · Vence ${dayMonth(focus.dueDate)}`
+                    : `Fecha dia ${card.closing_day} · Vence dia ${card.due_day}`}
                 </p>
               </div>
 
@@ -115,19 +218,89 @@ function CardsPage() {
                 </p>
               </div>
 
+              {pending.length > 0 ? (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Faturas pendentes</p>
+                  <ul className="space-y-2">
+                    {pending.map((invoice) => (
+                      <li
+                        key={invoice.key}
+                        className="flex items-center justify-between gap-3 rounded-xl bg-secondary/40 p-3"
+                      >
+                        <div className="text-sm">
+                          <p className="font-medium capitalize">{monthLabel(invoice.key)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {invoice.overdue
+                              ? `Venceu ${dayMonth(invoice.dueDate)}`
+                              : `Vence ${dayMonth(invoice.dueDate)} · ${
+                                  invoice.status === "fechada" ? "fechada" : "aberta"
+                                }`}
+                          </p>
+                        </div>
+                        <span className="tabular-nums">{brl(invoice.amount)}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => togglePaid(invoice)}
+                        >
+                          Pagar
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               <div>
                 <p className="mb-2 text-sm font-medium">Próximas faturas</p>
                 <ul className="space-y-1.5">
-                  {months.map((m) => (
-                    <li key={m} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground capitalize">{monthLabel(m)}</span>
-                      <span className="tabular-nums">
-                        {brl(cardInvoice(card.id, m, transactions, purchases))}
+                  {upcoming.map((invoice) => (
+                    <li key={invoice.key} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground capitalize">
+                        {monthLabel(invoice.key)}
+                        {invoice.paid ? (
+                          <span className="ml-2 inline-flex items-center gap-1 text-xs text-emerald-500">
+                            <Check className="h-3 w-3" /> paga
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="tabular-nums">{brl(invoice.amount)}</span>
+                        {invoice.paid ? (
+                          <button
+                            type="button"
+                            className="text-xs text-muted-foreground underline"
+                            onClick={() => togglePaid(invoice)}
+                          >
+                            desfazer
+                          </button>
+                        ) : null}
                       </span>
                     </li>
                   ))}
                 </ul>
               </div>
+
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 text-sm text-muted-foreground"
+                onClick={() =>
+                  updateCard.mutate({
+                    id: card.id,
+                    values: { invoice_alerts_enabled: !card.invoice_alerts_enabled },
+                  })
+                }
+              >
+                {card.invoice_alerts_enabled ? (
+                  <BellRing className="h-4 w-4 text-primary" />
+                ) : (
+                  <BellOff className="h-4 w-4" />
+                )}
+                {card.invoice_alerts_enabled
+                  ? "Avisos de vencimento ativados"
+                  : "Avisos de vencimento desativados"}
+              </button>
 
               <Link to="/parcelamentos" className="block text-sm text-primary">
                 Ver parcelamentos
@@ -141,6 +314,7 @@ function CardsPage() {
     </div>
   );
 }
+
 
 function CardSheet({ card, onClose }: { card: Card | "new" | null; onClose: () => void }) {
   const create = useCreate("cards", "Cartão criado");
