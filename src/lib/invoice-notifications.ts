@@ -88,7 +88,7 @@ export function alertsForInvoice(
   if (invoice.overdue) {
     return [build(-1, `Fatura ${cardName} vencida`, `${money(invoice.amount)} venceu em ${day}.`)];
   }
-  const offset = ALERT_OFFSETS.find((o) => invoice.daysToDue <= o);
+  const offset = [...ALERT_OFFSETS].sort((a, b) => a - b).find((o) => invoice.daysToDue <= o);
   if (offset === undefined) return [];
   const when =
     offset === 0 ? "vence hoje" : offset === 1 ? "vence amanhã" : `vence em ${invoice.daysToDue} dias`;
