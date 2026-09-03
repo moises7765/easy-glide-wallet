@@ -13,6 +13,7 @@ type TableName =
   | "assets"
   | "goals"
   | "budgets"
+  | "card_invoice_payments"
   | "net_worth_snapshots";
 
 const ORDER: Record<TableName, { column: string; ascending: boolean }> = {
@@ -23,6 +24,7 @@ const ORDER: Record<TableName, { column: string; ascending: boolean }> = {
   assets: { column: "value", ascending: false },
   goals: { column: "created_at", ascending: true },
   budgets: { column: "created_at", ascending: true },
+  card_invoice_payments: { column: "due_date", ascending: true },
   net_worth_snapshots: { column: "date", ascending: true },
 };
 
