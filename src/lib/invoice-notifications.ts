@@ -28,20 +28,104 @@ export type InvoiceAlert = {
   body: string;
 };
 
-const notificationsSupported = () => typeof window !== "undefined" && "Notification" in window;
+export type NotifyState = "granted" | "denied" | "default" | "unsupported";
 
-export function notificationPermission(): NotificationPermission | "unsupported" {
-  if (!notificationsSupported()) return "unsupported";
-  return Notification.permission;
+/** Diagnóstico do ambiente para explicar ao usuário o que dá (ou não dá) para fazer. */
+export type NotifyEnv = {
+  state: NotifyState;
+  /** true quando ainda dá para abrir o prompt do navegador. */
+  canRequest: boolean;
+  /** iOS/iPadOS: notificações só existem com o app instalado na tela de início. */
+  needsInstall: boolean;
+  isIOS: boolean;
+  isStandalone: boolean;
+  /** Motivo legível quando não há suporte. */
+  reason?: string;
+};
+
+const notificationsSupported = () =>
+  typeof window !== "undefined" &&
+  "Notification" in window &&
+  typeof window.Notification?.requestPermission === "function";
+
+function detectIOS() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const iOSDevice = /iPad|iPhone|iPod/.test(ua);
+  const iPadOS = /Macintosh/.test(ua) && (navigator.maxTouchPoints ?? 0) > 1;
+  return iOSDevice || iPadOS;
 }
 
-export async function requestNotificationPermission() {
-  if (!notificationsSupported()) return "unsupported" as const;
-  if (Notification.permission === "granted" || Notification.permission === "denied") {
-    return Notification.permission;
+function detectStandalone() {
+  if (typeof window === "undefined") return false;
+  const displayMode = window.matchMedia?.("(display-mode: standalone)")?.matches ?? false;
+  const iosStandalone = (window.navigator as { standalone?: boolean }).standalone === true;
+  return displayMode || iosStandalone;
+}
+
+export function notificationEnvironment(): NotifyEnv {
+  const isIOS = detectIOS();
+  const isStandalone = detectStandalone();
+
+  if (!notificationsSupported()) {
+    return {
+      state: "unsupported",
+      canRequest: false,
+      needsInstall: isIOS && !isStandalone,
+      isIOS,
+      isStandalone,
+      reason:
+        isIOS && !isStandalone
+          ? "No iPhone, avisos do sistema só funcionam com o app instalado na tela de início (Compartilhar → Adicionar à Tela de Início)."
+          : "Este navegador não oferece notificações do sistema.",
+    };
   }
-  return Notification.requestPermission();
+
+  const state = Notification.permission as NotifyState;
+  return {
+    state,
+    canRequest: state === "default",
+    needsInstall: false,
+    isIOS,
+    isStandalone,
+  };
 }
+
+export function notificationPermission(): NotifyState {
+  return notificationEnvironment().state;
+}
+
+/**
+ * Pede permissão. Só abre o prompt quando o estado é 'default' — nenhum código
+ * consegue reverter 'denied'; nesse caso o usuário precisa liberar nas
+ * configurações do navegador/sistema.
+ */
+export async function requestNotificationPermission(): Promise<NotifyState> {
+  if (!notificationsSupported()) return "unsupported";
+  if (Notification.permission !== "default") return Notification.permission as NotifyState;
+  try {
+    const result = await Notification.requestPermission();
+    return result as NotifyState;
+  } catch {
+    // Safari antigo usa callback em vez de Promise.
+    return new Promise<NotifyState>((resolve) => {
+      try {
+        Notification.requestPermission((r) => resolve(r as NotifyState));
+      } catch {
+        resolve("denied");
+      }
+    });
+  }
+}
+
+/** Instruções de como reabilitar quando o usuário bloqueou. */
+export function howToUnblock(env: NotifyEnv): string {
+  if (env.isIOS) {
+    return "Ajustes → Notificações → Fluxo Finanças e ative “Permitir notificações”. Se não aparecer, remova e reinstale o app na tela de início.";
+  }
+  return "No navegador, toque no cadeado/ícone ao lado do endereço → Permissões → Notificações → Permitir. Depois recarregue a página.";
+}
+
 
 function readSent(): string[] {
   if (typeof localStorage === "undefined") return [];
@@ -95,18 +179,36 @@ export function alertsForInvoice(
   return [build(offset, `Fatura ${cardName} ${when}`, `${money(invoice.amount)} · vencimento ${day}.`)];
 }
 
-/** Dispara notificações do sistema ainda não enviadas e devolve todos os alertas ativos. */
-export function dispatchAlerts(alerts: InvoiceAlert[], systemEnabled: boolean) {
+/**
+ * Dispara notificações do sistema ainda não enviadas e devolve todos os alertas ativos.
+ * O aviso dentro do app é sempre mostrado (fallback), então nada se perde quando
+ * a permissão está bloqueada ou o ambiente não suporta notificações.
+ */
+export async function dispatchAlerts(alerts: InvoiceAlert[], systemEnabled: boolean) {
   const sent = new Set(readSent());
   const pending = alerts.filter((a) => !sent.has(a.id));
+  if (pending.length === 0) return alerts;
 
   if (systemEnabled && notificationPermission() === "granted") {
+    // Alguns ambientes (iOS PWA) só aceitam notificação via service worker.
+    let registration: ServiceWorkerRegistration | undefined;
+    try {
+      registration = (await navigator.serviceWorker?.getRegistration()) ?? undefined;
+    } catch {
+      registration = undefined;
+    }
+
     for (const alert of pending) {
+      const options: NotificationOptions = { body: alert.body, tag: alert.id, icon: "/icons/icon-192.png" };
       try {
-        new Notification(alert.title, { body: alert.body, tag: alert.id });
+        if (registration?.showNotification) {
+          await registration.showNotification(alert.title, options);
+        } else {
+          new Notification(alert.title, options);
+        }
         sent.add(alert.id);
       } catch {
-        /* alguns navegadores exigem service worker — cai no aviso in-app */
+        /* cai no aviso in-app */
       }
     }
     writeSent([...sent]);
@@ -114,6 +216,7 @@ export function dispatchAlerts(alerts: InvoiceAlert[], systemEnabled: boolean) {
 
   return alerts;
 }
+
 
 /** Limpa marcações de faturas já pagas para não travar avisos futuros. */
 export function clearAlertsFor(cardId: string, invoiceKey: string) {

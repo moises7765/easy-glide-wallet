@@ -22,10 +22,13 @@ import {
   alertsForInvoice,
   clearAlertsFor,
   dispatchAlerts,
-  notificationPermission,
+  howToUnblock,
+  notificationEnvironment,
   requestNotificationPermission,
   type InvoiceAlert,
+  type NotifyEnv,
 } from "@/lib/invoice-notifications";
+
 import { useCreate, useRemove, useRows, useUpdate } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
@@ -82,11 +85,11 @@ function CardsPage() {
     return list;
   }, [cards, invoicesByCard]);
 
-  const [permission, setPermission] = useState<string>("default");
-  useEffect(() => setPermission(notificationPermission()), []);
+  const [env, setEnv] = useState<NotifyEnv | null>(null);
+  useEffect(() => setEnv(notificationEnvironment()), []);
   useEffect(() => {
-    if (alerts.length > 0) dispatchAlerts(alerts, permission === "granted");
-  }, [alerts, permission]);
+    if (alerts.length > 0 && env) void dispatchAlerts(alerts, env.state === "granted");
+  }, [alerts, env]);
 
   return (
     <div className="space-y-4">
@@ -117,28 +120,12 @@ function CardsPage() {
         </div>
       ) : null}
 
-      {cards.length > 0 && permission !== "granted" && permission !== "unsupported" ? (
+      {cards.length > 0 && env && env.state !== "granted" ? (
         <div className="px-5">
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-2xl border border-border p-3 text-left text-sm"
-            onClick={async () => {
-              const result = await requestNotificationPermission();
-              setPermission(result);
-              if (result === "denied") toast.error("Notificações bloqueadas pelo navegador");
-              if (result === "granted") toast.success("Avisos de fatura ativados");
-            }}
-          >
-            <BellRing className="h-4 w-4 text-primary" />
-            <span>
-              Ativar avisos de vencimento
-              <span className="block text-xs text-muted-foreground">
-                Lembretes 5 dias antes, 1 dia antes e no dia.
-              </span>
-            </span>
-          </button>
+          <NotifyPrompt env={env} onChange={setEnv} />
         </div>
       ) : null}
+
 
       {cards.length === 0 ? (
         <div className="px-5">
@@ -315,6 +302,64 @@ function CardsPage() {
   );
 }
 
+
+function NotifyPrompt({ env, onChange }: { env: NotifyEnv; onChange: (e: NotifyEnv) => void }) {
+  const [open, setOpen] = useState(false);
+
+  if (env.state === "denied" || env.state === "unsupported") {
+    const blocked = env.state === "denied";
+    return (
+      <div className="rounded-2xl border border-border p-3 text-sm">
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 text-left"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <BellOff className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span>
+            {blocked ? "Avisos bloqueados pelo navegador" : "Avisos do sistema indisponíveis aqui"}
+            <span className="block text-xs text-muted-foreground">
+              Os lembretes continuam aparecendo aqui dentro do app. Toque para saber como ativar no
+              sistema.
+            </span>
+          </span>
+        </button>
+        {open ? (
+          <p className="mt-3 rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
+            {blocked ? howToUnblock(env) : env.reason}
+            <span className="mt-2 block">
+              Lembretes: 5 dias antes, 1 dia antes e no dia do vencimento.
+            </span>
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-3 rounded-2xl border border-border p-3 text-left text-sm"
+      onClick={async () => {
+        const result = await requestNotificationPermission();
+        const next = notificationEnvironment();
+        onChange(next);
+        if (result === "granted") toast.success("Avisos de fatura ativados");
+        else if (result === "denied") toast.error("Permissão negada — veja como reativar");
+        else if (result === "unsupported") toast.error("Este ambiente não suporta notificações");
+        else toast("Permissão não concedida — os lembretes seguem dentro do app");
+      }}
+    >
+      <BellRing className="h-4 w-4 text-primary" />
+      <span>
+        Ativar avisos de vencimento
+        <span className="block text-xs text-muted-foreground">
+          Lembretes 5 dias antes, 1 dia antes e no dia.
+        </span>
+      </span>
+    </button>
+  );
+}
 
 function CardSheet({ card, onClose }: { card: Card | "new" | null; onClose: () => void }) {
   const create = useCreate("cards", "Cartão criado");
