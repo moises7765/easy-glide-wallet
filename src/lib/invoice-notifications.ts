@@ -72,6 +72,7 @@ function detectEmbedded() {
   try {
     inIframe = window.self !== window.top;
   } catch {
+    // Cross-origin iframe: definitivamente estamos dentro de outro frame.
     inIframe = true;
   }
   const host = window.location?.hostname ?? "";
@@ -80,7 +81,8 @@ function detectEmbedded() {
     host.startsWith("preview--") ||
     host.endsWith(".lovableproject.com") ||
     host.endsWith(".lovableproject-dev.com") ||
-    host.endsWith(".lovable.dev");
+    host.endsWith(".lovable.dev") ||
+    host.endsWith(".lovable.app");
   return inIframe || previewHost;
 }
 
