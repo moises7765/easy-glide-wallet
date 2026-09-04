@@ -306,8 +306,13 @@ function CardsPage() {
 function NotifyPrompt({ env, onChange }: { env: NotifyEnv; onChange: (e: NotifyEnv) => void }) {
   const [open, setOpen] = useState(false);
 
-  if (env.state === "denied" || env.state === "unsupported") {
+  if (env.state !== "default") {
     const blocked = env.state === "denied";
+    const title = blocked
+      ? "Avisos bloqueados nas configurações"
+      : env.state === "unavailable"
+        ? "Notificações nativas indisponíveis neste ambiente"
+        : "Avisos do sistema indisponíveis neste navegador";
     return (
       <div className="rounded-2xl border border-border p-3 text-sm">
         <button
@@ -317,7 +322,8 @@ function NotifyPrompt({ env, onChange }: { env: NotifyEnv; onChange: (e: NotifyE
         >
           <BellOff className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span>
-            {blocked ? "Avisos bloqueados pelo navegador" : "Avisos do sistema indisponíveis aqui"}
+            {title}
+
             <span className="block text-xs text-muted-foreground">
               Os lembretes continuam aparecendo aqui dentro do app. Toque para saber como ativar no
               sistema.

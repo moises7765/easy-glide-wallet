@@ -28,7 +28,7 @@ export type InvoiceAlert = {
   body: string;
 };
 
-export type NotifyState = "granted" | "denied" | "default" | "unsupported";
+export type NotifyState = "granted" | "denied" | "default" | "unsupported" | "unavailable";
 
 /** Diagnóstico do ambiente para explicar ao usuário o que dá (ou não dá) para fazer. */
 export type NotifyEnv = {
@@ -39,6 +39,8 @@ export type NotifyEnv = {
   needsInstall: boolean;
   isIOS: boolean;
   isStandalone: boolean;
+  /** Preview do Lovable / iframe: o domínio não expõe a permissão de notificações. */
+  isEmbedded: boolean;
   /** Motivo legível quando não há suporte. */
   reason?: string;
 };
@@ -63,37 +65,80 @@ function detectStandalone() {
   return displayMode || iosStandalone;
 }
 
+/** Preview do Lovable (iframe ou domínio de preview): pedir permissão ali não vale. */
+function detectEmbedded() {
+  if (typeof window === "undefined") return false;
+  let inIframe = false;
+  try {
+    inIframe = window.self !== window.top;
+  } catch {
+    inIframe = true;
+  }
+  const host = window.location?.hostname ?? "";
+  const previewHost =
+    host.startsWith("id-preview--") ||
+    host.startsWith("preview--") ||
+    host.endsWith(".lovableproject.com") ||
+    host.endsWith(".lovableproject-dev.com") ||
+    host.endsWith(".lovable.dev");
+  return inIframe || previewHost;
+}
+
 export function notificationEnvironment(): NotifyEnv {
   const isIOS = detectIOS();
   const isStandalone = detectStandalone();
+  const isEmbedded = detectEmbedded();
+  const base = { needsInstall: false, isIOS, isStandalone, isEmbedded };
 
   if (!notificationsSupported()) {
     return {
-      state: "unsupported",
+      ...base,
+      state: isEmbedded ? "unavailable" : "unsupported",
       canRequest: false,
       needsInstall: isIOS && !isStandalone,
-      isIOS,
-      isStandalone,
-      reason:
-        isIOS && !isStandalone
+      reason: isEmbedded
+        ? "Notificações nativas ficam indisponíveis no Preview. Abra o app publicado (ou instale na Tela de Início) para ativar."
+        : isIOS && !isStandalone
           ? "No iPhone, avisos do sistema só funcionam com o app instalado na tela de início (Compartilhar → Adicionar à Tela de Início)."
           : "Este navegador não oferece notificações do sistema.",
     };
   }
 
-  const state = Notification.permission as NotifyState;
+  const permission = Notification.permission as "granted" | "denied" | "default";
+
+  // No Preview/iframe a permissão não pertence ao domínio do app: não é bloqueio.
+  if (isEmbedded && permission !== "granted") {
+    return {
+      ...base,
+      state: "unavailable",
+      canRequest: false,
+      reason:
+        "Notificações nativas indisponíveis neste ambiente (Preview). Instale/abra o app publicado como PWA para ativar. Os lembretes continuam aqui dentro do app.",
+    };
+  }
+
+  if (isIOS && !isStandalone && permission !== "granted") {
+    return {
+      ...base,
+      state: "unavailable",
+      canRequest: false,
+      needsInstall: true,
+      reason:
+        "No iPhone, notificações só funcionam com o app instalado na Tela de Início (Compartilhar → Adicionar à Tela de Início). Enquanto isso, os lembretes aparecem aqui dentro do app.",
+    };
+  }
+
   return {
-    state,
-    canRequest: state === "default",
-    needsInstall: false,
-    isIOS,
-    isStandalone,
+    ...base,
+    state: permission,
+    canRequest: permission === "default",
   };
 }
 
 export function notificationPermission(): NotifyState {
   return notificationEnvironment().state;
 }
+
 
 /**
  * Pede permissão. Só abre o prompt quando o estado é 'default' — nenhum código
