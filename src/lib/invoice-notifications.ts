@@ -179,18 +179,36 @@ export function alertsForInvoice(
   return [build(offset, `Fatura ${cardName} ${when}`, `${money(invoice.amount)} · vencimento ${day}.`)];
 }
 
-/** Dispara notificações do sistema ainda não enviadas e devolve todos os alertas ativos. */
-export function dispatchAlerts(alerts: InvoiceAlert[], systemEnabled: boolean) {
+/**
+ * Dispara notificações do sistema ainda não enviadas e devolve todos os alertas ativos.
+ * O aviso dentro do app é sempre mostrado (fallback), então nada se perde quando
+ * a permissão está bloqueada ou o ambiente não suporta notificações.
+ */
+export async function dispatchAlerts(alerts: InvoiceAlert[], systemEnabled: boolean) {
   const sent = new Set(readSent());
   const pending = alerts.filter((a) => !sent.has(a.id));
+  if (pending.length === 0) return alerts;
 
   if (systemEnabled && notificationPermission() === "granted") {
+    // Alguns ambientes (iOS PWA) só aceitam notificação via service worker.
+    let registration: ServiceWorkerRegistration | undefined;
+    try {
+      registration = (await navigator.serviceWorker?.getRegistration()) ?? undefined;
+    } catch {
+      registration = undefined;
+    }
+
     for (const alert of pending) {
+      const options: NotificationOptions = { body: alert.body, tag: alert.id, icon: "/icons/icon-192.png" };
       try {
-        new Notification(alert.title, { body: alert.body, tag: alert.id });
+        if (registration?.showNotification) {
+          await registration.showNotification(alert.title, options);
+        } else {
+          new Notification(alert.title, options);
+        }
         sent.add(alert.id);
       } catch {
-        /* alguns navegadores exigem service worker — cai no aviso in-app */
+        /* cai no aviso in-app */
       }
     }
     writeSent([...sent]);
@@ -198,6 +216,7 @@ export function dispatchAlerts(alerts: InvoiceAlert[], systemEnabled: boolean) {
 
   return alerts;
 }
+
 
 /** Limpa marcações de faturas já pagas para não travar avisos futuros. */
 export function clearAlertsFor(cardId: string, invoiceKey: string) {
