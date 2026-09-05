@@ -306,13 +306,15 @@ function CardsPage() {
 function NotifyPrompt({ env, onChange }: { env: NotifyEnv; onChange: (e: NotifyEnv) => void }) {
   const [open, setOpen] = useState(false);
 
-  if (env.state !== "default") {
-    const blocked = env.state === "denied";
-    const title = blocked
-      ? "Avisos bloqueados nas configurações"
-      : env.state === "unavailable"
-        ? "Notificações nativas indisponíveis neste ambiente"
-        : "Avisos do sistema indisponíveis neste navegador";
+  if (env.state === "unavailable" || env.state === "unsupported") {
+    const isPreview = env.isEmbedded;
+    const title = isPreview
+      ? "Notificações do sistema não podem ser ativadas no Preview"
+      : env.needsInstall
+        ? "Instale o app na Tela de Início para ativar avisos"
+        : env.state === "unsupported"
+          ? "Avisos do sistema indisponíveis neste navegador"
+          : "Notificações nativas indisponíveis neste ambiente";
     return (
       <div className="rounded-2xl border border-border p-3 text-sm">
         <button
@@ -323,16 +325,44 @@ function NotifyPrompt({ env, onChange }: { env: NotifyEnv; onChange: (e: NotifyE
           <BellOff className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span>
             {title}
-
             <span className="block text-xs text-muted-foreground">
-              Os lembretes continuam aparecendo aqui dentro do app. Toque para saber como ativar no
-              sistema.
+              {isPreview
+                ? "Teste no aplicativo publicado/PWA instalado na Tela de Início. Os lembretes continuam aqui dentro do app."
+                : "Os lembretes continuam aparecendo aqui dentro do app. Toque para saber como ativar no sistema."}
             </span>
           </span>
         </button>
         {open ? (
           <p className="mt-3 rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
-            {blocked ? howToUnblock(env) : env.reason}
+            {env.reason}
+            <span className="mt-2 block">
+              Lembretes: 5 dias antes, 1 dia antes e no dia do vencimento.
+            </span>
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (env.state === "denied") {
+    return (
+      <div className="rounded-2xl border border-border p-3 text-sm">
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 text-left"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <BellOff className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span>
+            Avisos bloqueados nas configurações
+            <span className="block text-xs text-muted-foreground">
+              A permissão foi negada pelo navegador/Sistema. Toque para saber como reativar.
+            </span>
+          </span>
+        </button>
+        {open ? (
+          <p className="mt-3 rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
+            {howToUnblock(env)}
             <span className="mt-2 block">
               Lembretes: 5 dias antes, 1 dia antes e no dia do vencimento.
             </span>

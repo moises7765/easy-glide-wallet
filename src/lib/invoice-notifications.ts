@@ -79,10 +79,10 @@ function detectEmbedded() {
   const previewHost =
     host.startsWith("id-preview--") ||
     host.startsWith("preview--") ||
+    (host.endsWith(".lovable.app") && host.includes("preview")) ||
     host.endsWith(".lovableproject.com") ||
     host.endsWith(".lovableproject-dev.com") ||
-    host.endsWith(".lovable.dev") ||
-    host.endsWith(".lovable.app");
+    host.endsWith(".lovable.dev");
   return inIframe || previewHost;
 }
 
