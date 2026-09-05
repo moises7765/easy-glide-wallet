@@ -383,6 +383,8 @@ export type Database = {
           id: string
           note: string | null
           payment_method: string
+          receipt_mime: string | null
+          receipt_path: string | null
           type: string
           updated_at: string
           user_id: string
@@ -397,6 +399,8 @@ export type Database = {
           id?: string
           note?: string | null
           payment_method?: string
+          receipt_mime?: string | null
+          receipt_path?: string | null
           type?: string
           updated_at?: string
           user_id: string
@@ -411,6 +415,8 @@ export type Database = {
           id?: string
           note?: string | null
           payment_method?: string
+          receipt_mime?: string | null
+          receipt_path?: string | null
           type?: string
           updated_at?: string
           user_id?: string
