@@ -23,6 +23,9 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [description, setDescription] = useState("");
   const [note, setNote] = useState("");
   const [more, setMore] = useState(false);
+  const [receipt, setReceipt] = useState<ReceiptRef | null>(null);
+
+
 
   const { data: categories = [] } = useRows("categories");
   const { data: cards = [] } = useRows("cards");
