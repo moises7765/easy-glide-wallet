@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
 
 import { BottomSheet } from "@/components/finance-ui";
+import { ReceiptField } from "@/components/ReceiptField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { PAYMENT_METHODS, toISODate } from "@/lib/finance";
+import { removeReceipt, type ReceiptRef } from "@/lib/receipts";
 import { useCreate, useRows } from "@/lib/queries";
+
 
 export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [type, setType] = useState<"expense" | "income">("expense");
@@ -20,6 +23,9 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [description, setDescription] = useState("");
   const [note, setNote] = useState("");
   const [more, setMore] = useState(false);
+  const [receipt, setReceipt] = useState<ReceiptRef | null>(null);
+
+
 
   const { data: categories = [] } = useRows("categories");
   const { data: cards = [] } = useRows("cards");
@@ -41,6 +47,7 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
     setDescription("");
     setNote("");
     setMore(false);
+    setReceipt(null);
     setDate(toISODate(new Date()));
   }
 
@@ -57,6 +64,8 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
         first_due_date: date,
         note: note || null,
       });
+      // Parcelamentos não guardam comprovante; evita arquivo órfão.
+      await removeReceipt(receipt?.path);
     } else {
       await createTx.mutateAsync({
         type,
@@ -67,9 +76,12 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
         payment_method: method,
         description: description || null,
         note: note || null,
+        receipt_path: receipt?.path ?? null,
+        receipt_mime: receipt?.mime ?? null,
       });
     }
     reset();
+
     onOpenChange(false);
   }
 
@@ -216,8 +228,10 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
               <Label className="text-xs text-muted-foreground">Observação</Label>
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-1" rows={2} />
             </div>
+            <ReceiptField value={receipt} onChange={setReceipt} />
           </div>
         ) : null}
+
 
         <Button
           onClick={save}

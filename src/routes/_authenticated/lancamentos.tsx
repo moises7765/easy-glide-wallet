@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Paperclip } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { BottomSheet, EmptyState, PageHeader, Panel, Row } from "@/components/finance-ui";
+import { ReceiptField } from "@/components/ReceiptField";
+import { ReceiptViewer } from "@/components/ReceiptViewer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +19,9 @@ import {
   PAYMENT_METHODS,
   type Transaction,
 } from "@/lib/finance";
+import { removeReceipt, type ReceiptRef } from "@/lib/receipts";
 import { useRemove, useRows, useUpdate } from "@/lib/queries";
+
 
 export const Route = createFileRoute("/_authenticated/lancamentos")({
   head: () => ({
@@ -36,6 +41,8 @@ function TransactionsPage() {
   const { data: cards = [] } = useRows("cards");
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [viewing, setViewing] = useState<Transaction | null>(null);
+
 
   const groups = useMemo(() => {
     const list = transactions.filter((t) => filter === "all" || t.type === filter);
@@ -106,6 +113,28 @@ function TransactionsPage() {
                     right={`${t.type === "income" ? "+" : "−"} ${brl(num(t.amount))}`}
                     tone={t.type === "income" ? "positive" : "negative"}
                     onClick={() => setEditing(t)}
+                    badge={
+                      t.receipt_path ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Ver comprovante"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewing(t);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              setViewing(t);
+                            }
+                          }}
+                          className="shrink-0 text-muted-foreground"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                        </span>
+                      ) : null
+                    }
                     leading={
                       <span
                         className="h-9 w-9 rounded-xl"
@@ -120,7 +149,13 @@ function TransactionsPage() {
         );
       })}
 
+      <ReceiptViewer
+        path={viewing?.receipt_path ?? null}
+        mime={viewing?.receipt_mime}
+        onClose={() => setViewing(null)}
+      />
       <EditTransaction transaction={editing} onClose={() => setEditing(null)} />
+
     </div>
   );
 }
@@ -240,12 +275,27 @@ function EditTransaction({
             className="mt-1"
           />
         </div>
+        <ReceiptField
+          value={
+            form.receipt_path
+              ? ({ path: form.receipt_path, mime: form.receipt_mime ?? "" } as ReceiptRef)
+              : null
+          }
+          onChange={(ref) => {
+            setForm({ ...form, receipt_path: ref?.path ?? null, receipt_mime: ref?.mime ?? null });
+            void update.mutateAsync({
+              id: form.id,
+              values: { receipt_path: ref?.path ?? null, receipt_mime: ref?.mime ?? null },
+            });
+          }}
+        />
         <div className="flex gap-2 pt-2">
           <Button
             variant="outline"
             className="h-12 flex-1 rounded-full text-destructive"
             onClick={async () => {
               await remove.mutateAsync(form.id);
+              await removeReceipt(form.receipt_path);
               onClose();
             }}
           >
@@ -264,11 +314,14 @@ function EditTransaction({
                   payment_method: form.payment_method,
                   description: form.description,
                   note: form.note,
+                  receipt_path: form.receipt_path,
+                  receipt_mime: form.receipt_mime,
                 },
               });
               onClose();
             }}
           >
+
             Salvar
           </Button>
         </div>

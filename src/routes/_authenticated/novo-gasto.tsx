@@ -2,11 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { PageHeader, Panel } from "@/components/finance-ui";
+import { ReceiptField } from "@/components/ReceiptField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toISODate } from "@/lib/finance";
 import { useCreate, useRows } from "@/lib/queries";
+import { type ReceiptRef } from "@/lib/receipts";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/novo-gasto")({
@@ -29,6 +31,7 @@ function NovoGasto() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<ReceiptRef | null>(null);
 
   const { data: categories = [] } = useRows("categories");
   const createTx = useCreate("transactions", "Gasto registrado");
@@ -52,10 +55,13 @@ function NovoGasto() {
       payment_method: "pix",
       description: description || null,
       note: null,
+      receipt_path: receipt?.path ?? null,
+      receipt_mime: receipt?.mime ?? null,
     });
     setAmount("");
     setDescription("");
     setCategoryId(null);
+    setReceipt(null);
     navigate({ to: "/inicio" });
   }
 
@@ -113,6 +119,8 @@ function NovoGasto() {
                 </div>
               </div>
             ) : null}
+
+            <ReceiptField value={receipt} onChange={setReceipt} />
 
             <Button
               onClick={save}
