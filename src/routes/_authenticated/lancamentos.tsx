@@ -111,6 +111,28 @@ function TransactionsPage() {
                     right={`${t.type === "income" ? "+" : "−"} ${brl(num(t.amount))}`}
                     tone={t.type === "income" ? "positive" : "negative"}
                     onClick={() => setEditing(t)}
+                    badge={
+                      t.receipt_path ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Ver comprovante"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewing(t);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              setViewing(t);
+                            }
+                          }}
+                          className="shrink-0 text-muted-foreground"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                        </span>
+                      ) : null
+                    }
                     leading={
                       <span
                         className="h-9 w-9 rounded-xl"
@@ -125,7 +147,13 @@ function TransactionsPage() {
         );
       })}
 
+      <ReceiptViewer
+        path={viewing?.receipt_path ?? null}
+        mime={viewing?.receipt_mime}
+        onClose={() => setViewing(null)}
+      />
       <EditTransaction transaction={editing} onClose={() => setEditing(null)} />
+
     </div>
   );
 }
