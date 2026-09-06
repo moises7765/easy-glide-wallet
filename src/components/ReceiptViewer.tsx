@@ -10,7 +10,7 @@ export function ReceiptViewer({
   onClose,
 }: {
   path: string | null;
-  mime?: string | null;
+  mime?: string | null | undefined;
   onClose: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
