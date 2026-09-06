@@ -275,12 +275,27 @@ function EditTransaction({
             className="mt-1"
           />
         </div>
+        <ReceiptField
+          value={
+            form.receipt_path
+              ? ({ path: form.receipt_path, mime: form.receipt_mime ?? "" } as ReceiptRef)
+              : null
+          }
+          onChange={(ref) => {
+            setForm({ ...form, receipt_path: ref?.path ?? null, receipt_mime: ref?.mime ?? null });
+            void update.mutateAsync({
+              id: form.id,
+              values: { receipt_path: ref?.path ?? null, receipt_mime: ref?.mime ?? null },
+            });
+          }}
+        />
         <div className="flex gap-2 pt-2">
           <Button
             variant="outline"
             className="h-12 flex-1 rounded-full text-destructive"
             onClick={async () => {
               await remove.mutateAsync(form.id);
+              await removeReceipt(form.receipt_path);
               onClose();
             }}
           >
@@ -299,11 +314,14 @@ function EditTransaction({
                   payment_method: form.payment_method,
                   description: form.description,
                   note: form.note,
+                  receipt_path: form.receipt_path,
+                  receipt_mime: form.receipt_mime,
                 },
               });
               onClose();
             }}
           >
+
             Salvar
           </Button>
         </div>
