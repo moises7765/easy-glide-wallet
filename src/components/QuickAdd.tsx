@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
 
 import { BottomSheet } from "@/components/finance-ui";
+import { ReceiptField } from "@/components/ReceiptField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { PAYMENT_METHODS, toISODate } from "@/lib/finance";
+import { removeReceipt, type ReceiptRef } from "@/lib/receipts";
 import { useCreate, useRows } from "@/lib/queries";
+
 
 export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [type, setType] = useState<"expense" | "income">("expense");
