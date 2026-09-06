@@ -217,13 +217,17 @@ export function alertsForInvoice(
   const day = invoice.dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   if (invoice.overdue) {
-    return [build(-1, `Fatura ${cardName} vencida`, `${money(invoice.amount)} venceu em ${day}.`)];
+    return [build(-1, "Sua fatura venceu", `${cardName} • ${money(invoice.amount)} • vencimento ${day}`)];
   }
   const offset = [...ALERT_OFFSETS].sort((a, b) => a - b).find((o) => invoice.daysToDue <= o);
   if (offset === undefined) return [];
-  const when =
-    offset === 0 ? "vence hoje" : offset === 1 ? "vence amanhã" : `vence em ${invoice.daysToDue} dias`;
-  return [build(offset, `Fatura ${cardName} ${when}`, `${money(invoice.amount)} · vencimento ${day}.`)];
+  const title =
+    offset === 0
+      ? "Sua fatura vence hoje"
+      : offset === 1
+        ? "Sua fatura vence amanhã"
+        : `Sua fatura vence em ${invoice.daysToDue} dias`;
+  return [build(offset, title, `${cardName} • ${money(invoice.amount)} • vencimento ${day}`)];
 }
 
 /**
