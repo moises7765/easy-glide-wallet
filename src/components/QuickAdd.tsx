@@ -228,8 +228,10 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
               <Label className="text-xs text-muted-foreground">Observação</Label>
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-1" rows={2} />
             </div>
+            <ReceiptField value={receipt} onChange={setReceipt} />
           </div>
         ) : null}
+
 
         <Button
           onClick={save}
