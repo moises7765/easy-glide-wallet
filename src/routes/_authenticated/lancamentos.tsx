@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Paperclip } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { BottomSheet, EmptyState, PageHeader, Panel, Row } from "@/components/finance-ui";
+import { ReceiptField } from "@/components/ReceiptField";
+import { ReceiptViewer } from "@/components/ReceiptViewer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +19,9 @@ import {
   PAYMENT_METHODS,
   type Transaction,
 } from "@/lib/finance";
+import { removeReceipt, type ReceiptRef } from "@/lib/receipts";
 import { useRemove, useRows, useUpdate } from "@/lib/queries";
+
 
 export const Route = createFileRoute("/_authenticated/lancamentos")({
   head: () => ({
