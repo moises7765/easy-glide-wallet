@@ -41,6 +41,8 @@ function TransactionsPage() {
   const { data: cards = [] } = useRows("cards");
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [viewing, setViewing] = useState<Transaction | null>(null);
+
 
   const groups = useMemo(() => {
     const list = transactions.filter((t) => filter === "all" || t.type === filter);
