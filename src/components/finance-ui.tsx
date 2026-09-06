@@ -129,6 +129,7 @@ export function Row({
   onClick,
   leading,
   tone,
+  badge,
 }: {
   title: string;
   subtitle?: string;
@@ -137,6 +138,7 @@ export function Row({
   onClick?: () => void;
   leading?: ReactNode;
   tone?: "positive" | "negative";
+  badge?: ReactNode;
 }) {
   return (
     <button
@@ -146,9 +148,13 @@ export function Row({
     >
       {leading}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{title}</p>
+        <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+          <span className="truncate">{title}</span>
+          {badge}
+        </p>
         {subtitle ? <p className="truncate text-xs text-muted-foreground">{subtitle}</p> : null}
       </div>
+
       <div className="text-right">
         {right ? (
           <p
