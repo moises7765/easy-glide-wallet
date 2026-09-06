@@ -47,6 +47,7 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
     setDescription("");
     setNote("");
     setMore(false);
+    setReceipt(null);
     setDate(toISODate(new Date()));
   }
 
@@ -63,6 +64,8 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
         first_due_date: date,
         note: note || null,
       });
+      // Parcelamentos não guardam comprovante; evita arquivo órfão.
+      await removeReceipt(receipt?.path);
     } else {
       await createTx.mutateAsync({
         type,
@@ -73,9 +76,12 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
         payment_method: method,
         description: description || null,
         note: note || null,
+        receipt_path: receipt?.path ?? null,
+        receipt_mime: receipt?.mime ?? null,
       });
     }
     reset();
+
     onOpenChange(false);
   }
 
