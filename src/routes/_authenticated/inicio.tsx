@@ -40,6 +40,8 @@ function Dashboard() {
   const { data: goals = [] } = useRows("goals");
   const { data: snapshots = [] } = useRows("net_worth_snapshots");
   const { data: fund } = useEmergencyFund();
+  const { data: profile } = useProfile();
+  const { email } = useUser();
 
   const current = monthKey(new Date());
 
