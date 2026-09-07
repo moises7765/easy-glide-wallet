@@ -1,14 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, CreditCard, FileUp, LogOut, PiggyBank, Target, Wallet } from "lucide-react";
-import { useState } from "react";
+import { Camera, ChevronRight, CreditCard, FileUp, LogOut, PiggyBank, Target, Wallet } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { ImportStatement } from "@/components/ImportStatement";
 
 import { PageHeader, Panel } from "@/components/finance-ui";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num } from "@/lib/finance";
-import { useEmergencyFund, useRows, useUser } from "@/lib/queries";
+import { useEmergencyFund, useProfile, useRows, useUser } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/mais")({
   head: () => ({
@@ -24,12 +27,75 @@ export const Route = createFileRoute("/_authenticated/mais")({
 
 function MorePage() {
   const [importOpen, setImportOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const { email } = useUser();
+  const { data: profile } = useProfile();
   const { data: assets = [] } = useRows("assets");
   const { data: purchases = [] } = useRows("installment_purchases");
   const { data: fund } = useEmergencyFund();
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const netWorth = assets.reduce((s, a) => s + num(a.value), 0);
+
+  async function updateAvatarUrl(path: string | null) {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error("Sessão expirada");
+    const { error } = await supabase
+      .from("profiles")
+      .update({ avatar_url: path })
+      .eq("id", auth.user.id);
+    if (error) throw error;
+    qc.invalidateQueries({ queryKey: ["profiles"] });
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Escolha uma imagem (JPG, PNG, etc.)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Sessão expirada");
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${auth.user.id}/${Date.now()}.${ext}`;
+
+      if (profile?.avatar_url) {
+        await supabase.storage.from("avatars").remove([profile.avatar_url]);
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      await updateAvatarUrl(path);
+      toast.success("Foto de perfil atualizada");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar foto");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function removeAvatar() {
+    if (!profile?.avatar_url) return;
+    setUploading(true);
+    try {
+      await supabase.storage.from("avatars").remove([profile.avatar_url]);
+      await updateAvatarUrl(null);
+      toast.success("Foto de perfil removida");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover foto");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const items = [
     {
@@ -58,6 +124,49 @@ function MorePage() {
       <PageHeader title="Mais" subtitle={email ?? ""} />
 
       <div className="space-y-4 px-5">
+        <Panel className="flex flex-col items-center gap-3 p-6 text-center">
+          <UserAvatar
+            name={profile?.display_name ?? email}
+            avatarUrl={profile?.avatar_url}
+            className="h-20 w-20"
+          />
+          <div className="space-y-0.5">
+            <p className="text-base font-semibold">{profile?.display_name ?? email}</p>
+            <p className="text-sm text-muted-foreground">{email}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Camera className="mr-1.5 h-4 w-4" />
+              {profile?.avatar_url ? "Alterar foto" : "Adicionar foto"}
+            </Button>
+            {profile?.avatar_url && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-full text-muted-foreground"
+                disabled={uploading}
+                onClick={removeAvatar}
+              >
+                Remover
+              </Button>
+            )}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="user"
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </Panel>
+
         <Panel className="divide-y divide-border p-0">
           {items.map((item) => (
             <Link

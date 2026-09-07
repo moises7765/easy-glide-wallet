@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { PageHeader, Panel, ProgressBar, StatCard } from "@/components/finance-ui";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   brl,
   brlShort,
@@ -16,7 +17,7 @@ import {
   remainingOf,
   addMonths,
 } from "@/lib/finance";
-import { useEmergencyFund, useRows } from "@/lib/queries";
+import { useEmergencyFund, useProfile, useRows, useUser } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
@@ -39,6 +40,8 @@ function Dashboard() {
   const { data: goals = [] } = useRows("goals");
   const { data: snapshots = [] } = useRows("net_worth_snapshots");
   const { data: fund } = useEmergencyFund();
+  const { data: profile } = useProfile();
+  const { email } = useUser();
 
   const current = monthKey(new Date());
 
@@ -109,6 +112,18 @@ function Dashboard() {
       <PageHeader
         title="Início"
         subtitle={new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+        action={
+          <Link
+            to="/mais"
+            className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Perfil e configurações"
+          >
+            <UserAvatar
+              name={profile?.display_name ?? email}
+              avatarUrl={profile?.avatar_url}
+            />
+          </Link>
+        }
       />
 
       <div className="px-5">

@@ -89,6 +89,25 @@ export function useEmergencyFund() {
   });
 }
 
+export function useProfile() {
+  const ready = useSessionReady();
+  return useQuery({
+    queryKey: ["profiles"],
+    enabled: ready,
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", auth.user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 function invalidate(qc: ReturnType<typeof useQueryClient>, table: string) {
   qc.invalidateQueries({ queryKey: [table] });
   qc.invalidateQueries({ queryKey: ["emergency_fund"] });
