@@ -112,6 +112,18 @@ function Dashboard() {
       <PageHeader
         title="Início"
         subtitle={new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+        action={
+          <Link
+            to="/mais"
+            className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Perfil e configurações"
+          >
+            <UserAvatar
+              name={profile?.display_name ?? email}
+              avatarUrl={profile?.avatar_url}
+            />
+          </Link>
+        }
       />
 
       <div className="px-5">
