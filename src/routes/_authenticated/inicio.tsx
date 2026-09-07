@@ -37,6 +37,7 @@ function Dashboard() {
   const { data: purchases = [] } = useRows("installment_purchases");
   const { data: assets = [] } = useRows("assets");
   const { data: goals = [] } = useRows("goals");
+  const { data: snapshots = [] } = useRows("net_worth_snapshots");
   const { data: fund } = useEmergencyFund();
 
   const current = monthKey(new Date());
@@ -56,8 +57,17 @@ function Dashboard() {
       .reduce((s, t) => s + num(t.amount), 0);
     const netWorth = assets.reduce((s, a) => s + num(a.value), 0);
     const committed = purchases.reduce((s, p) => s + remainingOf(p).total, 0);
-    return { balance: income - expense, monthIn, monthOut, netWorth, committed };
-  }, [transactions, assets, purchases, current]);
+
+    // Baseline: most recent snapshot registered on or before the 1st of the current month.
+    const firstDayOfMonth = `${current}-01`;
+    const baselineSnapshot = snapshots
+      .filter((s) => s.date <= firstDayOfMonth)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    const baselineNetWorth = baselineSnapshot ? num(baselineSnapshot.total) : 0;
+    const netWorthChange = netWorth - baselineNetWorth;
+
+    return { balance: income - expense, monthIn, monthOut, netWorth, committed, netWorthChange };
+  }, [transactions, assets, purchases, snapshots, current]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; color: string; value: number }>();
@@ -125,7 +135,17 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 px-5">
-        <StatCard label="Patrimônio" value={brl(stats.netWorth)} />
+        <StatCard
+          label="Patrimônio líquido"
+          value={brl(stats.netWorth)}
+          hint={
+            stats.netWorthChange > 0
+              ? `↑ ${brl(stats.netWorthChange)} este mês`
+              : stats.netWorthChange < 0
+                ? `↓ ${brl(-stats.netWorthChange)} este mês`
+                : `${brl(0)} este mês`
+          }
+        />
         <StatCard
           label="Comprometido"
           value={brl(stats.committed)}
