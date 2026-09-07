@@ -124,6 +124,49 @@ function MorePage() {
       <PageHeader title="Mais" subtitle={email ?? ""} />
 
       <div className="space-y-4 px-5">
+        <Panel className="flex flex-col items-center gap-3 p-6 text-center">
+          <UserAvatar
+            name={profile?.display_name ?? email}
+            avatarUrl={profile?.avatar_url}
+            className="h-20 w-20"
+          />
+          <div className="space-y-0.5">
+            <p className="text-base font-semibold">{profile?.display_name ?? email}</p>
+            <p className="text-sm text-muted-foreground">{email}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Camera className="mr-1.5 h-4 w-4" />
+              {profile?.avatar_url ? "Alterar foto" : "Adicionar foto"}
+            </Button>
+            {profile?.avatar_url && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-full text-muted-foreground"
+                disabled={uploading}
+                onClick={removeAvatar}
+              >
+                Remover
+              </Button>
+            )}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="user"
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </Panel>
+
         <Panel className="divide-y divide-border p-0">
           {items.map((item) => (
             <Link
