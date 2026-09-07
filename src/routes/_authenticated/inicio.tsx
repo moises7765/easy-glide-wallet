@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { PageHeader, Panel, ProgressBar, StatCard } from "@/components/finance-ui";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   brl,
   brlShort,
@@ -16,7 +17,7 @@ import {
   remainingOf,
   addMonths,
 } from "@/lib/finance";
-import { useEmergencyFund, useRows } from "@/lib/queries";
+import { useEmergencyFund, useProfile, useRows, useUser } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/inicio")({
   head: () => ({
