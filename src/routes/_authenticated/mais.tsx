@@ -1,14 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, CreditCard, FileUp, LogOut, PiggyBank, Target, Wallet } from "lucide-react";
-import { useState } from "react";
+import { Camera, ChevronRight, CreditCard, FileUp, LogOut, PiggyBank, Target, Wallet } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { ImportStatement } from "@/components/ImportStatement";
 
 import { PageHeader, Panel } from "@/components/finance-ui";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num } from "@/lib/finance";
-import { useEmergencyFund, useRows, useUser } from "@/lib/queries";
+import { useEmergencyFund, useProfile, useRows, useUser } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/mais")({
   head: () => ({
