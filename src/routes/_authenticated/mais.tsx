@@ -27,12 +27,75 @@ export const Route = createFileRoute("/_authenticated/mais")({
 
 function MorePage() {
   const [importOpen, setImportOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const { email } = useUser();
+  const { data: profile } = useProfile();
   const { data: assets = [] } = useRows("assets");
   const { data: purchases = [] } = useRows("installment_purchases");
   const { data: fund } = useEmergencyFund();
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const netWorth = assets.reduce((s, a) => s + num(a.value), 0);
+
+  async function updateAvatarUrl(path: string | null) {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error("Sessão expirada");
+    const { error } = await supabase
+      .from("profiles")
+      .update({ avatar_url: path })
+      .eq("id", auth.user.id);
+    if (error) throw error;
+    qc.invalidateQueries({ queryKey: ["profiles"] });
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Escolha uma imagem (JPG, PNG, etc.)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Sessão expirada");
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${auth.user.id}/${Date.now()}.${ext}`;
+
+      if (profile?.avatar_url) {
+        await supabase.storage.from("avatars").remove([profile.avatar_url]);
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      await updateAvatarUrl(path);
+      toast.success("Foto de perfil atualizada");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar foto");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function removeAvatar() {
+    if (!profile?.avatar_url) return;
+    setUploading(true);
+    try {
+      await supabase.storage.from("avatars").remove([profile.avatar_url]);
+      await updateAvatarUrl(null);
+      toast.success("Foto de perfil removida");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover foto");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const items = [
     {
