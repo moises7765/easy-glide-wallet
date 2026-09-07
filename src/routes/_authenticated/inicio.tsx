@@ -135,7 +135,17 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 px-5">
-        <StatCard label="Patrimônio" value={brl(stats.netWorth)} />
+        <StatCard
+          label="Patrimônio líquido"
+          value={brl(stats.netWorth)}
+          hint={
+            stats.netWorthChange > 0
+              ? `↑ ${brl(stats.netWorthChange)} este mês`
+              : stats.netWorthChange < 0
+                ? `↓ ${brl(-stats.netWorthChange)} este mês`
+                : `${brl(0)} este mês`
+          }
+        />
         <StatCard
           label="Comprometido"
           value={brl(stats.committed)}
