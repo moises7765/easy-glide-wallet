@@ -46,12 +46,6 @@ function Dashboard() {
   const current = monthKey(new Date());
 
   const stats = useMemo(() => {
-    const income = transactions
-      .filter((t) => t.type === "income")
-      .reduce((s, t) => s + num(t.amount), 0);
-    const expense = transactions
-      .filter((t) => t.type === "expense")
-      .reduce((s, t) => s + num(t.amount), 0);
     const monthIn = transactions
       .filter((t) => t.type === "income" && monthKey(t.date) === current)
       .reduce((s, t) => s + num(t.amount), 0);
@@ -69,7 +63,7 @@ function Dashboard() {
     const baselineNetWorth = baselineSnapshot ? num(baselineSnapshot.total) : 0;
     const netWorthChange = netWorth - baselineNetWorth;
 
-    return { balance: income - expense, monthIn, monthOut, netWorth, committed, netWorthChange };
+    return { balance: monthIn - monthOut, monthIn, monthOut, netWorth, committed, netWorthChange };
   }, [transactions, assets, purchases, snapshots, current]);
 
   const byCategory = useMemo(() => {
@@ -128,7 +122,7 @@ function Dashboard() {
 
       <div className="px-5">
         <Panel className="bg-gradient-to-br from-primary/15 to-transparent">
-          <p className="text-xs tracking-wide text-muted-foreground uppercase">Saldo total</p>
+          <p className="text-xs tracking-wide text-muted-foreground uppercase">Saldo do mês</p>
           <p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums">
             {brl(stats.balance)}
           </p>

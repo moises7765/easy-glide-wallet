@@ -161,7 +161,6 @@ function MorePage() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="user"
             className="sr-only"
             onChange={handleFileChange}
           />
