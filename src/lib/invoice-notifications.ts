@@ -1,24 +1,29 @@
 /**
  * Avisos de vencimento de fatura.
  *
- * Navegadores (e o PWA no iPhone) não permitem agendar notificações locais
- * confiáveis com o app fechado — não há Web Push configurado neste projeto.
- * Então: quando o app está aberto (ou volta ao primeiro plano) disparamos a
- * notificação do sistema, se permitida, e SEMPRE mostramos o aviso dentro do
- * app como fallback. Cada fatura/marco é notificado uma única vez.
+ * O envio real acontece no servidor, todos os dias às 08:00 (Brasília), via
+ * Web Push — funciona com o app fechado quando o aparelho está inscrito
+ * (PWA instalado + permissão concedida). O aviso dentro do app permanece
+ * como fallback e é apenas informativo: abrir Cartões NÃO dispara nada.
  */
 
+import { supabase } from "@/integrations/supabase/client";
 import type { CardInvoice } from "@/lib/finance";
 
 /** Dias antes do vencimento em que avisamos. 0 = no dia. */
 export const ALERT_OFFSETS = [5, 1, 0] as const;
 
-const STORAGE_KEY = "fluxo:invoice-alerts-sent";
-export const PERMISSION_KEY = "fluxo:invoice-alerts-enabled";
+/** Chave pública VAPID (publicável) — a privada fica só no servidor. */
+export const VAPID_PUBLIC_KEY =
+  "BEUdM0gqOWEbh_p_xpFVN_H4Ez1_4B1Iu4Be1u7Z-6H_3n2GPZ6JigLzQ0QklegFBAjvzmnPekQB1wDyHcg4y6E";
+
+const SW_PATH = "/push-sw.js";
 
 export type InvoiceAlert = {
   /** cardId:invoiceKey:offset — dedupe */
   id: string;
+  cardId: string;
+  offset: number;
   cardName: string;
   invoiceKey: string;
   amount: number;
@@ -41,6 +46,8 @@ export type NotifyEnv = {
   isStandalone: boolean;
   /** Preview do Lovable / iframe: o domínio não expõe a permissão de notificações. */
   isEmbedded: boolean;
+  /** Web Push (service worker + PushManager) disponível neste navegador. */
+  pushSupported: boolean;
   /** Motivo legível quando não há suporte. */
   reason?: string;
 };
@@ -49,6 +56,12 @@ const notificationsSupported = () =>
   typeof window !== "undefined" &&
   "Notification" in window &&
   typeof window.Notification?.requestPermission === "function";
+
+const pushSupported = () =>
+  typeof window !== "undefined" &&
+  "serviceWorker" in navigator &&
+  "PushManager" in window &&
+  window.isSecureContext;
 
 function detectIOS() {
   if (typeof navigator === "undefined") return false;
@@ -72,7 +85,6 @@ function detectEmbedded() {
   try {
     inIframe = window.self !== window.top;
   } catch {
-    // Cross-origin iframe: definitivamente estamos dentro de outro frame.
     inIframe = true;
   }
   const host = window.location?.hostname ?? "";
@@ -90,7 +102,7 @@ export function notificationEnvironment(): NotifyEnv {
   const isIOS = detectIOS();
   const isStandalone = detectStandalone();
   const isEmbedded = detectEmbedded();
-  const base = { needsInstall: false, isIOS, isStandalone, isEmbedded };
+  const base = { needsInstall: false, isIOS, isStandalone, isEmbedded, pushSupported: pushSupported() };
 
   if (!notificationsSupported()) {
     return {
@@ -108,7 +120,6 @@ export function notificationEnvironment(): NotifyEnv {
 
   const permission = Notification.permission as "granted" | "denied" | "default";
 
-  // No Preview/iframe a permissão não pertence ao domínio do app: não é bloqueio.
   if (isEmbedded && permission !== "granted") {
     return {
       ...base,
@@ -141,11 +152,9 @@ export function notificationPermission(): NotifyState {
   return notificationEnvironment().state;
 }
 
-
 /**
  * Pede permissão. Só abre o prompt quando o estado é 'default' — nenhum código
- * consegue reverter 'denied'; nesse caso o usuário precisa liberar nas
- * configurações do navegador/sistema.
+ * consegue reverter 'denied'.
  */
 export async function requestNotificationPermission(): Promise<NotifyState> {
   if (!notificationsSupported()) return "unsupported";
@@ -154,7 +163,6 @@ export async function requestNotificationPermission(): Promise<NotifyState> {
     const result = await Notification.requestPermission();
     return result as NotifyState;
   } catch {
-    // Safari antigo usa callback em vez de Promise.
     return new Promise<NotifyState>((resolve) => {
       try {
         Notification.requestPermission((r) => resolve(r as NotifyState));
@@ -173,28 +181,105 @@ export function howToUnblock(env: NotifyEnv): string {
   return "No navegador, toque no cadeado/ícone ao lado do endereço → Permissões → Notificações → Permitir. Depois recarregue a página.";
 }
 
+/* ------------------------------------------------------------------------- *
+ * Web Push: inscrição deste aparelho
+ * ------------------------------------------------------------------------- */
 
-function readSent(): string[] {
-  if (typeof localStorage === "undefined") return [];
+function urlBase64ToUint8Array(base64: string) {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+async function swRegistration() {
+  const existing = await navigator.serviceWorker.getRegistration(SW_PATH);
+  if (existing) return existing;
+  return navigator.serviceWorker.register(SW_PATH, { scope: "/" });
+}
+
+export type PushStatus = "subscribed" | "none" | "unsupported";
+
+/** Este aparelho está inscrito para receber os avisos com o app fechado? */
+export async function pushStatus(): Promise<PushStatus> {
+  if (!pushSupported()) return "unsupported";
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
+    const reg = await navigator.serviceWorker.getRegistration(SW_PATH);
+    const sub = await reg?.pushManager.getSubscription();
+    return sub ? "subscribed" : "none";
   } catch {
-    return [];
+    return "none";
   }
 }
 
-function writeSent(ids: string[]) {
-  if (typeof localStorage === "undefined") return;
+/**
+ * Registra o service worker de push, cria a subscription e guarda no backend
+ * vinculada ao usuário logado (protegido por RLS).
+ */
+export async function enablePushOnThisDevice(): Promise<{ ok: boolean; reason?: string }> {
+  if (!pushSupported()) return { ok: false, reason: "Este navegador não suporta Web Push." };
+  if (Notification.permission !== "granted") {
+    return { ok: false, reason: "Permissão de notificação não concedida." };
+  }
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user) return { ok: false, reason: "Faça login para ativar os avisos." };
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids.slice(-200)));
-  } catch {
-    /* storage cheio/indisponível — apenas ignora */
+    const reg = await swRegistration();
+    await navigator.serviceWorker.ready;
+    const sub =
+      (await reg.pushManager.getSubscription()) ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      }));
+    const json = sub.toJSON();
+    const p256dh = json.keys?.["p256dh"];
+    const auth = json.keys?.["auth"];
+    if (!json.endpoint || !p256dh || !auth) {
+      return { ok: false, reason: "Não foi possível obter a inscrição do navegador." };
+    }
+    const { error } = await supabase.from("push_subscriptions").upsert(
+      {
+        user_id: user.id,
+        endpoint: json.endpoint,
+        p256dh,
+        auth,
+        user_agent: navigator.userAgent.slice(0, 200),
+      },
+      { onConflict: "endpoint" },
+    );
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : "Falha ao inscrever este aparelho." };
   }
 }
+
+/** Remove a inscrição deste aparelho (navegador + backend). */
+export async function disablePushOnThisDevice() {
+  if (!pushSupported()) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration(SW_PATH);
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) {
+      await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+      await sub.unsubscribe();
+    }
+  } catch {
+    /* ignora */
+  }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Texto dos alertas (compartilhado entre app e servidor)
+ * ------------------------------------------------------------------------- */
 
 const money = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+const dayMonth = (d: Date) =>
+  `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
 /** Alertas devidos hoje para uma fatura ainda NÃO paga. */
 export function alertsForInvoice(
@@ -205,6 +290,8 @@ export function alertsForInvoice(
   if (invoice.paid || invoice.amount <= 0.005) return [];
   const build = (offset: number, title: string, body: string): InvoiceAlert => ({
     id: `${cardId}:${invoice.key}:${offset}`,
+    cardId,
+    offset,
     cardName,
     invoiceKey: invoice.key,
     amount: invoice.amount,
@@ -214,11 +301,10 @@ export function alertsForInvoice(
     body,
   });
 
-  const day = invoice.dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const day = dayMonth(invoice.dueDate);
+  const body = `${cardName} • ${money(invoice.amount)} • vencimento ${day}`;
 
-  if (invoice.overdue) {
-    return [build(-1, "Sua fatura venceu", `${cardName} • ${money(invoice.amount)} • vencimento ${day}`)];
-  }
+  if (invoice.overdue) return [build(-1, "Sua fatura venceu", body)];
   const offset = [...ALERT_OFFSETS].sort((a, b) => a - b).find((o) => invoice.daysToDue <= o);
   if (offset === undefined) return [];
   const title =
@@ -227,49 +313,5 @@ export function alertsForInvoice(
       : offset === 1
         ? "Sua fatura vence amanhã"
         : `Sua fatura vence em ${invoice.daysToDue} dias`;
-  return [build(offset, title, `${cardName} • ${money(invoice.amount)} • vencimento ${day}`)];
-}
-
-/**
- * Dispara notificações do sistema ainda não enviadas e devolve todos os alertas ativos.
- * O aviso dentro do app é sempre mostrado (fallback), então nada se perde quando
- * a permissão está bloqueada ou o ambiente não suporta notificações.
- */
-export async function dispatchAlerts(alerts: InvoiceAlert[], systemEnabled: boolean) {
-  const sent = new Set(readSent());
-  const pending = alerts.filter((a) => !sent.has(a.id));
-  if (pending.length === 0) return alerts;
-
-  if (systemEnabled && notificationPermission() === "granted") {
-    // Alguns ambientes (iOS PWA) só aceitam notificação via service worker.
-    let registration: ServiceWorkerRegistration | undefined;
-    try {
-      registration = (await navigator.serviceWorker?.getRegistration()) ?? undefined;
-    } catch {
-      registration = undefined;
-    }
-
-    for (const alert of pending) {
-      const options: NotificationOptions = { body: alert.body, tag: alert.id, icon: "/icons/icon-192.png" };
-      try {
-        if (registration?.showNotification) {
-          await registration.showNotification(alert.title, options);
-        } else {
-          new Notification(alert.title, options);
-        }
-        sent.add(alert.id);
-      } catch {
-        /* cai no aviso in-app */
-      }
-    }
-    writeSent([...sent]);
-  }
-
-  return alerts;
-}
-
-
-/** Limpa marcações de faturas já pagas para não travar avisos futuros. */
-export function clearAlertsFor(cardId: string, invoiceKey: string) {
-  writeSent(readSent().filter((id) => !id.startsWith(`${cardId}:${invoiceKey}:`)));
+  return [build(offset, title, body)];
 }
