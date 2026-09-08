@@ -20,13 +20,15 @@ import {
 } from "@/lib/finance";
 import {
   alertsForInvoice,
-  clearAlertsFor,
-  dispatchAlerts,
+  disablePushOnThisDevice,
+  enablePushOnThisDevice,
   howToUnblock,
   notificationEnvironment,
+  pushStatus,
   requestNotificationPermission,
   type InvoiceAlert,
   type NotifyEnv,
+  type PushStatus,
 } from "@/lib/invoice-notifications";
 
 import { useCreate, useRemove, useRows, useUpdate } from "@/lib/queries";
@@ -85,11 +87,10 @@ function CardsPage() {
     return list;
   }, [cards, invoicesByCard]);
 
+  // Abrir Cartões só atualiza os dados. O envio das notificações é feito pelo
+  // servidor às 08:00 (Brasília), com o app fechado, para aparelhos inscritos.
   const [env, setEnv] = useState<NotifyEnv | null>(null);
   useEffect(() => setEnv(notificationEnvironment()), []);
-  useEffect(() => {
-    if (alerts.length > 0 && env) void dispatchAlerts(alerts, env.state === "granted");
-  }, [alerts, env]);
 
   return (
     <div className="space-y-4">
@@ -120,9 +121,9 @@ function CardsPage() {
         </div>
       ) : null}
 
-      {cards.length > 0 && env && env.state !== "granted" ? (
+      {cards.length > 0 && env ? (
         <div className="px-5">
-          <NotifyPrompt env={env} onChange={setEnv} />
+          {env.state === "granted" ? <PushDevicePanel /> : <NotifyPrompt env={env} onChange={setEnv} />}
         </div>
       ) : null}
 
@@ -155,7 +156,7 @@ function CardsPage() {
             due_date: `${invoice.key}-${String(invoice.dueDate.getDate()).padStart(2, "0")}`,
             amount: invoice.amount,
           });
-          clearAlertsFor(card.id, invoice.key);
+          
         };
 
         return (
@@ -378,22 +379,88 @@ function NotifyPrompt({ env, onChange }: { env: NotifyEnv; onChange: (e: NotifyE
       className="flex w-full items-center gap-3 rounded-2xl border border-border p-3 text-left text-sm"
       onClick={async () => {
         const result = await requestNotificationPermission();
-        const next = notificationEnvironment();
-        onChange(next);
-        if (result === "granted") toast.success("Avisos de fatura ativados");
-        else if (result === "denied") toast.error("Permissão negada — veja como reativar");
+        if (result === "granted") {
+          const sub = await enablePushOnThisDevice();
+          if (sub.ok) toast.success("Avisos de fatura ativados — todos os dias às 08:00");
+          else toast.error(sub.reason ?? "Não foi possível inscrever este aparelho");
+        } else if (result === "denied") toast.error("Permissão negada — veja como reativar");
         else if (result === "unsupported") toast.error("Este ambiente não suporta notificações");
         else toast("Permissão não concedida — os lembretes seguem dentro do app");
+        onChange(notificationEnvironment());
       }}
     >
       <BellRing className="h-4 w-4 text-primary" />
       <span>
         Ativar avisos de vencimento
         <span className="block text-xs text-muted-foreground">
-          Lembretes 5 dias antes, 1 dia antes e no dia.
+          Às 08:00: 5 dias antes, 1 dia antes e no dia — mesmo com o app fechado.
         </span>
       </span>
     </button>
+  );
+}
+
+/** Permissão já concedida: mostra se ESTE aparelho está inscrito para receber com o app fechado. */
+function PushDevicePanel() {
+  const [status, setStatus] = useState<PushStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void pushStatus().then(setStatus);
+  }, []);
+  if (!status) return null;
+
+  if (status === "unsupported") {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm">
+        <BellOff className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span>
+          Envio em segundo plano indisponível neste navegador
+          <span className="block text-xs text-muted-foreground">
+            Os lembretes continuam aqui dentro do app.
+          </span>
+        </span>
+      </div>
+    );
+  }
+
+  const subscribed = status === "subscribed";
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm">
+      {subscribed ? (
+        <BellRing className="h-4 w-4 shrink-0 text-primary" />
+      ) : (
+        <BellOff className="h-4 w-4 shrink-0 text-muted-foreground" />
+      )}
+      <span className="flex-1">
+        {subscribed ? "Avisos automáticos ativos neste aparelho" : "Ativar avisos neste aparelho"}
+        <span className="block text-xs text-muted-foreground">
+          {subscribed
+            ? "Todos os dias às 08:00: 5 dias antes, 1 dia antes e no dia — com o app fechado."
+            : "Receba às 08:00 mesmo com o app fechado."}
+        </span>
+      </span>
+      <Button
+        size="sm"
+        variant={subscribed ? "outline" : "default"}
+        className="rounded-full"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          if (subscribed) {
+            await disablePushOnThisDevice();
+            toast("Avisos desativados neste aparelho");
+          } else {
+            const r = await enablePushOnThisDevice();
+            if (r.ok) toast.success("Avisos ativados neste aparelho");
+            else toast.error(r.reason ?? "Falha ao ativar");
+          }
+          setStatus(await pushStatus());
+          setBusy(false);
+        }}
+      >
+        {subscribed ? "Desativar" : "Ativar"}
+      </Button>
+    </div>
   );
 }
 

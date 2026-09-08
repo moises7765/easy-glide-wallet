@@ -25,6 +25,7 @@ import { Route as AuthenticatedParcelamentosRouteImport } from './routes/_authen
 import { Route as AuthenticatedPatrimonioRouteImport } from './routes/_authenticated/patrimonio'
 import { Route as AuthenticatedReservaRouteImport } from './routes/_authenticated/reserva'
 import { Route as GuiaComoOrganizarFinancasRouteImport } from './routes/guia.como-organizar-financas'
+import { Route as ApiPublicHooksInvoiceAlertsRouteImport } from './routes/api/public/hooks/invoice-alerts'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -108,6 +109,12 @@ const GuiaComoOrganizarFinancasRoute =
     path: '/guia/como-organizar-financas',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksInvoiceAlertsRoute =
+  ApiPublicHooksInvoiceAlertsRouteImport.update({
+    id: '/api/public/hooks/invoice-alerts',
+    path: '/api/public/hooks/invoice-alerts',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/reserva': typeof AuthenticatedReservaRoute
   '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
+  '/api/public/hooks/invoice-alerts': typeof ApiPublicHooksInvoiceAlertsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -142,6 +150,7 @@ export interface FileRoutesByTo {
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/reserva': typeof AuthenticatedReservaRoute
   '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
+  '/api/public/hooks/invoice-alerts': typeof ApiPublicHooksInvoiceAlertsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -161,6 +170,7 @@ export interface FileRoutesById {
   '/_authenticated/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/_authenticated/reserva': typeof AuthenticatedReservaRoute
   '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
+  '/api/public/hooks/invoice-alerts': typeof ApiPublicHooksInvoiceAlertsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/patrimonio'
     | '/reserva'
     | '/guia/como-organizar-financas'
+    | '/api/public/hooks/invoice-alerts'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/patrimonio'
     | '/reserva'
     | '/guia/como-organizar-financas'
+    | '/api/public/hooks/invoice-alerts'
   id:
     | '__root__'
     | '/'
@@ -215,6 +227,7 @@ export interface FileRouteTypes {
     | '/_authenticated/patrimonio'
     | '/_authenticated/reserva'
     | '/guia/como-organizar-financas'
+    | '/api/public/hooks/invoice-alerts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -225,6 +238,7 @@ export interface RootRouteChildren {
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   GuiaComoOrganizarFinancasRoute: typeof GuiaComoOrganizarFinancasRoute
+  ApiPublicHooksInvoiceAlertsRoute: typeof ApiPublicHooksInvoiceAlertsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -341,6 +355,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuiaComoOrganizarFinancasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/invoice-alerts': {
+      id: '/api/public/hooks/invoice-alerts'
+      path: '/api/public/hooks/invoice-alerts'
+      fullPath: '/api/public/hooks/invoice-alerts'
+      preLoaderRoute: typeof ApiPublicHooksInvoiceAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -379,6 +400,7 @@ const rootRouteChildren: RootRouteChildren = {
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   GuiaComoOrganizarFinancasRoute: GuiaComoOrganizarFinancasRoute,
+  ApiPublicHooksInvoiceAlertsRoute: ApiPublicHooksInvoiceAlertsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
