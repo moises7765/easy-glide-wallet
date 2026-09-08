@@ -46,12 +46,6 @@ function Dashboard() {
   const current = monthKey(new Date());
 
   const stats = useMemo(() => {
-    const income = transactions
-      .filter((t) => t.type === "income")
-      .reduce((s, t) => s + num(t.amount), 0);
-    const expense = transactions
-      .filter((t) => t.type === "expense")
-      .reduce((s, t) => s + num(t.amount), 0);
     const monthIn = transactions
       .filter((t) => t.type === "income" && monthKey(t.date) === current)
       .reduce((s, t) => s + num(t.amount), 0);
