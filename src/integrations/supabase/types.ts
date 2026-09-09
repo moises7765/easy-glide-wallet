@@ -452,6 +452,7 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          invoice_payment_id: string | null
           note: string | null
           payment_method: string
           receipt_mime: string | null
@@ -468,6 +469,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          invoice_payment_id?: string | null
           note?: string | null
           payment_method?: string
           receipt_mime?: string | null
@@ -484,6 +486,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          invoice_payment_id?: string | null
           note?: string | null
           payment_method?: string
           receipt_mime?: string | null
@@ -505,6 +508,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_invoice_payment_id_fkey"
+            columns: ["invoice_payment_id"]
+            isOneToOne: false
+            referencedRelation: "card_invoice_payments"
             referencedColumns: ["id"]
           },
         ]

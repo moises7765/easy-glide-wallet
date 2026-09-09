@@ -1,0 +1,2 @@
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS invoice_payment_id uuid REFERENCES public.card_invoice_payments(id) ON DELETE CASCADE;
+CREATE UNIQUE INDEX IF NOT EXISTS transactions_invoice_payment_id_key ON public.transactions(invoice_payment_id) WHERE invoice_payment_id IS NOT NULL;
