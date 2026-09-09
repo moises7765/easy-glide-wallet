@@ -187,7 +187,13 @@ export function cardInvoice(
 ) {
   const keyOf = (date: string) => (card ? invoiceKeyForDate(card, date) : monthKey(date));
   const single = transactions
-    .filter((t) => t.card_id === cardId && t.type === "expense" && keyOf(t.date) === key)
+    .filter(
+      (t) =>
+        t.card_id === cardId &&
+        t.type === "expense" &&
+        !t.invoice_payment_id &&
+        keyOf(t.date) === key,
+    )
     .reduce((s, t) => s + num(t.amount), 0);
   const parcels = purchases
     .filter((p) => p.card_id === cardId)
@@ -232,7 +238,7 @@ export function cardInvoiceKeys(
 ) {
   const keys = new Set<string>();
   transactions
-    .filter((t) => t.card_id === card.id && t.type === "expense")
+    .filter((t) => t.card_id === card.id && t.type === "expense" && !t.invoice_payment_id)
     .forEach((t) => keys.add(invoiceKeyForDate(card, t.date)));
   purchases
     .filter((p) => p.card_id === card.id)
@@ -305,7 +311,13 @@ export function cardUsed(
   );
   const keyOf = (date: string) => (card ? invoiceKeyForDate(card, date) : monthKey(date));
   const singles = transactions
-    .filter((t) => t.card_id === cardId && t.type === "expense" && !paidKeys.has(keyOf(t.date)))
+    .filter(
+      (t) =>
+        t.card_id === cardId &&
+        t.type === "expense" &&
+        !t.invoice_payment_id &&
+        !paidKeys.has(keyOf(t.date)),
+    )
     .reduce((s, t) => s + num(t.amount), 0);
   return committed + singles;
 }
