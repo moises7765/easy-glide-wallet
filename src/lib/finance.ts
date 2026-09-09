@@ -187,7 +187,13 @@ export function cardInvoice(
 ) {
   const keyOf = (date: string) => (card ? invoiceKeyForDate(card, date) : monthKey(date));
   const single = transactions
-    .filter((t) => t.card_id === cardId && t.type === "expense" && keyOf(t.date) === key)
+    .filter(
+      (t) =>
+        t.card_id === cardId &&
+        t.type === "expense" &&
+        !t.invoice_payment_id &&
+        keyOf(t.date) === key,
+    )
     .reduce((s, t) => s + num(t.amount), 0);
   const parcels = purchases
     .filter((p) => p.card_id === cardId)
