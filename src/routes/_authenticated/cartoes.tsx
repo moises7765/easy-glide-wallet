@@ -31,7 +31,14 @@ import {
   type PushStatus,
 } from "@/lib/invoice-notifications";
 
-import { useCreate, useRemove, useRows, useUpdate } from "@/lib/queries";
+import {
+  useCreate,
+  usePayInvoice,
+  useRemove,
+  useRows,
+  useUnpayInvoice,
+  useUpdate,
+} from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
@@ -64,8 +71,8 @@ function CardsPage() {
   const { data: payments = [] } = useRows("card_invoice_payments");
   const [editing, setEditing] = useState<Card | "new" | null>(null);
 
-  const payInvoice = useCreate("card_invoice_payments", "Fatura marcada como paga");
-  const unpayInvoice = useRemove("card_invoice_payments", "Pagamento desfeito");
+  const payInvoice = usePayInvoice();
+  const unpayInvoice = useUnpayInvoice();
   const updateCard = useUpdate("cards", "Cartão atualizado");
 
   const invoicesByCard = useMemo(
@@ -152,11 +159,12 @@ function CardsPage() {
           }
           await payInvoice.mutateAsync({
             card_id: card.id,
+            card_name: card.name,
             invoice_key: invoice.key,
+            invoice_label: monthLabel(invoice.key),
             due_date: `${invoice.key}-${String(invoice.dueDate.getDate()).padStart(2, "0")}`,
             amount: invoice.amount,
           });
-          
         };
 
         return (

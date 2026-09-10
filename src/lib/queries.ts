@@ -220,3 +220,88 @@ export function useImportTransactions() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+/** Marca a fatura como paga e cria o lançamento de despesa vinculado (idempotente). */
+export function usePayInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      card_id: string;
+      card_name: string;
+      invoice_key: string;
+      invoice_label: string;
+      due_date: string;
+      amount: number;
+    }) => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Sessão expirada");
+      const userId = auth.user.id;
+
+      const { data: payment, error: payErr } = await supabase
+        .from("card_invoice_payments")
+        .upsert(
+          {
+            user_id: userId,
+            card_id: input.card_id,
+            invoice_key: input.invoice_key,
+            due_date: input.due_date,
+            amount: input.amount,
+          },
+          { onConflict: "card_id,invoice_key" },
+        )
+        .select("id, paid_at")
+        .single();
+      if (payErr) throw payErr;
+
+      const { data: existing } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("invoice_payment_id", payment.id)
+        .maybeSingle();
+      if (existing) return;
+
+      const { data: categories } = await supabase
+        .from("categories")
+        .select("id, name, kind")
+        .eq("kind", "expense");
+      const category = (categories ?? []).find((c) =>
+        /fatura|cart[ãa]o/i.test(c.name ?? ""),
+      );
+
+      const paidDate = (payment.paid_at ?? new Date().toISOString()).slice(0, 10);
+      const { error: txErr } = await supabase.from("transactions").insert({
+        user_id: userId,
+        type: "expense",
+        amount: input.amount,
+        date: paidDate,
+        card_id: input.card_id,
+        category_id: category?.id ?? null,
+        payment_method: "transfer",
+        description: `Pagamento da fatura ${input.card_name} — ${input.invoice_label}`,
+        invoice_payment_id: payment.id,
+      } as never);
+      if (txErr && txErr.code !== "23505") throw txErr;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries();
+      toast.success("Fatura marcada como paga");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Desfaz o pagamento; o lançamento vinculado sai junto via ON DELETE CASCADE. */
+export function useUnpayInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase.from("card_invoice_payments").delete().eq("id", paymentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries();
+      toast.success("Pagamento desfeito");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
