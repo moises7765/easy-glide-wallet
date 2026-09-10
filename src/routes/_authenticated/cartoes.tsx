@@ -71,8 +71,8 @@ function CardsPage() {
   const { data: payments = [] } = useRows("card_invoice_payments");
   const [editing, setEditing] = useState<Card | "new" | null>(null);
 
-  const payInvoice = useCreate("card_invoice_payments", "Fatura marcada como paga");
-  const unpayInvoice = useRemove("card_invoice_payments", "Pagamento desfeito");
+  const payInvoice = usePayInvoice();
+  const unpayInvoice = useUnpayInvoice();
   const updateCard = useUpdate("cards", "Cartão atualizado");
 
   const invoicesByCard = useMemo(
