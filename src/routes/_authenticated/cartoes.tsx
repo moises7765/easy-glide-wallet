@@ -159,11 +159,12 @@ function CardsPage() {
           }
           await payInvoice.mutateAsync({
             card_id: card.id,
+            card_name: card.name,
             invoice_key: invoice.key,
+            invoice_label: monthLabel(invoice.key),
             due_date: `${invoice.key}-${String(invoice.dueDate.getDate()).padStart(2, "0")}`,
             amount: invoice.amount,
           });
-          
         };
 
         return (
