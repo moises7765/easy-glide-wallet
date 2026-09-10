@@ -31,7 +31,14 @@ import {
   type PushStatus,
 } from "@/lib/invoice-notifications";
 
-import { useCreate, useRemove, useRows, useUpdate } from "@/lib/queries";
+import {
+  useCreate,
+  usePayInvoice,
+  useRemove,
+  useRows,
+  useUnpayInvoice,
+  useUpdate,
+} from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/cartoes")({
   head: () => ({
