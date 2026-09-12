@@ -31,6 +31,50 @@ export const Route = createFileRoute("/_authenticated/inicio")({
   component: Dashboard,
 });
 
+type ComparisonMetric = {
+  label: string;
+  current: number;
+  previous: number;
+  tone?: "positive" | "negative";
+};
+
+function ComparisonRow({ label, current, previous, tone }: ComparisonMetric) {
+  const difference = current - previous;
+  const percent = previous === 0 ? null : Math.round((difference / Math.abs(previous)) * 100);
+  const direction = difference > 0 ? "↑" : difference < 0 ? "↓" : "—";
+  const directionClass =
+    difference === 0
+      ? "text-muted-foreground"
+      : tone === "negative"
+        ? difference < 0
+          ? "text-primary"
+          : "text-destructive"
+        : difference > 0
+          ? "text-primary"
+          : "text-destructive";
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 py-3 last:border-0">
+      <div className="min-w-0">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+          Anterior: {brl(previous)}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-semibold tabular-nums">{brl(current)}</p>
+        <p className={`mt-0.5 text-xs font-medium tabular-nums ${directionClass}`}>
+          {percent === null
+            ? difference === 0
+              ? "Sem variação"
+              : "Sem base anterior"
+            : `${direction} ${Math.abs(percent)}%`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const { data: transactions = [] } = useRows("transactions");
   const { data: categories = [] } = useRows("categories");
@@ -65,6 +109,78 @@ function Dashboard() {
 
     return { balance: monthIn - monthOut, monthIn, monthOut, netWorth, committed, netWorthChange };
   }, [transactions, assets, purchases, snapshots, current]);
+
+  const comparison = useMemo(() => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentDay = today.getDate();
+    const previousMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    const previousLastDay = new Date(currentYear, currentMonth, 0).getDate();
+    const previousDayLimit = Math.min(currentDay, previousLastDay);
+    const comparableTransactions = transactions.filter((t) => !t.invoice_payment_id);
+
+    const totalsForPeriod = (year: number, monthIndex: number, dayLimit: number) => {
+      const key = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+      const periodTransactions = comparableTransactions.filter(
+        (t) => monthKey(t.date) === key && Number(t.date.slice(8, 10)) <= dayLimit,
+      );
+      const income = periodTransactions
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + num(t.amount), 0);
+      const expense = periodTransactions
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + num(t.amount), 0);
+      return { income, expense, balance: income - expense, count: periodTransactions.length };
+    };
+
+    const currentPeriod = totalsForPeriod(currentYear, currentMonth, currentDay);
+    const previousPeriod = totalsForPeriod(
+      previousMonthDate.getFullYear(),
+      previousMonthDate.getMonth(),
+      previousDayLimit,
+    );
+
+    const completeMonths = Array.from({ length: 3 }, (_, index) => {
+      const date = new Date(currentYear, currentMonth - index - 1, 1);
+      const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      return totalsForPeriod(date.getFullYear(), date.getMonth(), lastDay);
+    });
+    const hasThreeCompleteMonths = completeMonths.every((month) => month.count > 0);
+    const averageIncome = hasThreeCompleteMonths
+      ? completeMonths.reduce((sum, month) => sum + month.income, 0) / 3
+      : 0;
+    const averageExpense = hasThreeCompleteMonths
+      ? completeMonths.reduce((sum, month) => sum + month.expense, 0) / 3
+      : 0;
+
+    const percentage = (value: number, previous: number) =>
+      previous === 0 ? null : Math.round(Math.abs(((value - previous) / previous) * 100));
+    const expenseChange = percentage(currentPeriod.expense, previousPeriod.expense);
+    const incomeChange = percentage(currentPeriod.income, previousPeriod.income);
+
+    let insight = "Ainda não há dados suficientes do mês anterior para comparar.";
+    if (previousPeriod.count > 0) {
+      if (expenseChange !== null && currentPeriod.expense !== previousPeriod.expense) {
+        insight = `Você gastou ${expenseChange}% ${currentPeriod.expense < previousPeriod.expense ? "menos" : "mais"} que no mês passado.`;
+      } else if (incomeChange !== null && currentPeriod.income !== previousPeriod.income) {
+        insight = `Suas entradas ${currentPeriod.income > previousPeriod.income ? "aumentaram" : "diminuíram"} ${incomeChange}% em relação ao mês passado.`;
+      } else {
+        insight = "Suas entradas e saídas estão estáveis em relação ao mês passado.";
+      }
+    }
+
+    return {
+      currentPeriod,
+      previousPeriod,
+      previousDayLimit,
+      hasComparison: previousPeriod.count > 0,
+      hasThreeCompleteMonths,
+      averageIncome,
+      averageExpense,
+      insight,
+    };
+  }, [transactions]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; color: string; value: number }>();
@@ -161,6 +277,69 @@ function Dashboard() {
           tone="negative"
           hint="parcelas a pagar"
         />
+      </div>
+
+      <div className="px-5">
+        <Panel>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-medium">Comparação com meses anteriores</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Mesmo período, até o dia {comparison.previousDayLimit}
+              </p>
+            </div>
+            <span className="shrink-0 text-xs text-muted-foreground">mês atual</span>
+          </div>
+
+          {comparison.hasComparison ? (
+            <div className="mt-2">
+              <ComparisonRow
+                label="Entradas"
+                current={comparison.currentPeriod.income}
+                previous={comparison.previousPeriod.income}
+              />
+              <ComparisonRow
+                label="Saídas"
+                current={comparison.currentPeriod.expense}
+                previous={comparison.previousPeriod.expense}
+                tone="negative"
+              />
+              <ComparisonRow
+                label="Saldo / Sobrou"
+                current={comparison.currentPeriod.balance}
+                previous={comparison.previousPeriod.balance}
+              />
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Ainda não há movimentações suficientes no mês anterior para fazer a comparação.
+            </p>
+          )}
+
+          <p className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed">
+            {comparison.insight}
+          </p>
+
+          {comparison.hasThreeCompleteMonths ? (
+            <div className="mt-3 border-t border-border/60 pt-3">
+              <p className="text-xs font-medium text-muted-foreground">Média dos últimos 3 meses</p>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Entradas</p>
+                  <p className="mt-0.5 text-sm font-semibold text-primary tabular-nums">
+                    {brl(comparison.averageIncome)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Saídas</p>
+                  <p className="mt-0.5 text-sm font-semibold text-destructive tabular-nums">
+                    {brl(comparison.averageExpense)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </Panel>
       </div>
 
       <div className="px-5">
