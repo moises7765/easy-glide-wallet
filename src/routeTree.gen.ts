@@ -24,6 +24,7 @@ import { Route as AuthenticatedNovoGastoRouteImport } from './routes/_authentica
 import { Route as AuthenticatedParcelamentosRouteImport } from './routes/_authenticated/parcelamentos'
 import { Route as AuthenticatedPatrimonioRouteImport } from './routes/_authenticated/patrimonio'
 import { Route as AuthenticatedReservaRouteImport } from './routes/_authenticated/reserva'
+import { Route as ApiFluxoAiRouteImport } from './routes/api/fluxo-ai'
 import { Route as GuiaComoOrganizarFinancasRouteImport } from './routes/guia.como-organizar-financas'
 import { Route as ApiPublicHooksInvoiceAlertsRouteImport } from './routes/api/public/hooks/invoice-alerts'
 
@@ -103,6 +104,11 @@ const AuthenticatedReservaRoute = AuthenticatedReservaRouteImport.update({
   path: '/reserva',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiFluxoAiRoute = ApiFluxoAiRouteImport.update({
+  id: '/api/fluxo-ai',
+  path: '/api/fluxo-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GuiaComoOrganizarFinancasRoute =
   GuiaComoOrganizarFinancasRouteImport.update({
     id: '/guia/como-organizar-financas',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/reserva': typeof AuthenticatedReservaRoute
+  '/api/fluxo-ai': typeof ApiFluxoAiRoute
   '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
   '/api/public/hooks/invoice-alerts': typeof ApiPublicHooksInvoiceAlertsRoute
 }
@@ -149,6 +156,7 @@ export interface FileRoutesByTo {
   '/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/reserva': typeof AuthenticatedReservaRoute
+  '/api/fluxo-ai': typeof ApiFluxoAiRoute
   '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
   '/api/public/hooks/invoice-alerts': typeof ApiPublicHooksInvoiceAlertsRoute
 }
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   '/_authenticated/parcelamentos': typeof AuthenticatedParcelamentosRoute
   '/_authenticated/patrimonio': typeof AuthenticatedPatrimonioRoute
   '/_authenticated/reserva': typeof AuthenticatedReservaRoute
+  '/api/fluxo-ai': typeof ApiFluxoAiRoute
   '/guia/como-organizar-financas': typeof GuiaComoOrganizarFinancasRoute
   '/api/public/hooks/invoice-alerts': typeof ApiPublicHooksInvoiceAlertsRoute
 }
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/parcelamentos'
     | '/patrimonio'
     | '/reserva'
+    | '/api/fluxo-ai'
     | '/guia/como-organizar-financas'
     | '/api/public/hooks/invoice-alerts'
   fileRoutesByTo: FileRoutesByTo
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/parcelamentos'
     | '/patrimonio'
     | '/reserva'
+    | '/api/fluxo-ai'
     | '/guia/como-organizar-financas'
     | '/api/public/hooks/invoice-alerts'
   id:
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/_authenticated/parcelamentos'
     | '/_authenticated/patrimonio'
     | '/_authenticated/reserva'
+    | '/api/fluxo-ai'
     | '/guia/como-organizar-financas'
     | '/api/public/hooks/invoice-alerts'
   fileRoutesById: FileRoutesById
@@ -237,6 +249,7 @@ export interface RootRouteChildren {
   ConfirmarRoute: typeof ConfirmarRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiFluxoAiRoute: typeof ApiFluxoAiRoute
   GuiaComoOrganizarFinancasRoute: typeof GuiaComoOrganizarFinancasRoute
   ApiPublicHooksInvoiceAlertsRoute: typeof ApiPublicHooksInvoiceAlertsRoute
 }
@@ -348,6 +361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReservaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/fluxo-ai': {
+      id: '/api/fluxo-ai'
+      path: '/api/fluxo-ai'
+      fullPath: '/api/fluxo-ai'
+      preLoaderRoute: typeof ApiFluxoAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/guia/como-organizar-financas': {
       id: '/guia/como-organizar-financas'
       path: '/guia/como-organizar-financas'
@@ -399,6 +419,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfirmarRoute: ConfirmarRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiFluxoAiRoute: ApiFluxoAiRoute,
   GuiaComoOrganizarFinancasRoute: GuiaComoOrganizarFinancasRoute,
   ApiPublicHooksInvoiceAlertsRoute: ApiPublicHooksInvoiceAlertsRoute,
 }
