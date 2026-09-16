@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
 import type { Database } from "@/integrations/supabase/types";
-import { createLovableAiRunFetch } from "@/lib/ai-gateway.server";
+import { createLovableAiRunFetch, withLovableRunId } from "@/lib/ai-gateway.server";
 import { buildFluxoAiContext, FLUXO_AI_INSTRUCTIONS } from "@/lib/fluxo-ai.server";
 
 type ChatBody = { messages?: unknown };
@@ -67,10 +67,7 @@ export const Route = createFileRoute("/api/fluxo-ai")({
             originalMessages: body.messages as UIMessage[],
             sendReasoning: true,
           });
-          const headers = new Headers(response.headers);
-          const runId = run.getRunId();
-          if (runId) headers.set("X-Lovable-AIG-Run-ID", runId);
-          return new Response(response.body, { status: response.status, headers });
+          return withLovableRunId(response, run);
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") return new Response(null, { status: 499 });
           throw error;
