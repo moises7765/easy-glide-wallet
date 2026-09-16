@@ -3,6 +3,8 @@ import { CreditCard, Home, LayoutGrid, Plus, Receipt, Target } from "lucide-reac
 import { useState } from "react";
 
 import { QuickAdd } from "@/components/QuickAdd";
+import { FluxoAiButton, FluxoAiDrawer } from "@/components/fluxo-ai/FluxoAi";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -35,20 +37,24 @@ const TABS = [
 
 function AppLayout() {
   const [quickOpen, setQuickOpen] = useState(false);
+  const [fluxoAiOpen, setFluxoAiOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-md pb-32">
       <Outlet />
 
-      <button
+      <Button
         type="button"
+        size="icon"
         onClick={() => setQuickOpen(true)}
         aria-label="Novo lançamento"
         className="fixed bottom-24 left-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_10px_30px_-8px_rgba(0,0,0,0.8)] transition-transform active:scale-95"
       >
         <Plus className="h-7 w-7" />
-      </button>
+      </Button>
+
+      <FluxoAiButton onClick={() => setFluxoAiOpen(true)} />
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-md items-center justify-between px-3 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -73,6 +79,7 @@ function AppLayout() {
       </nav>
 
       <QuickAdd open={quickOpen} onOpenChange={setQuickOpen} />
+      <FluxoAiDrawer open={fluxoAiOpen} onOpenChange={setFluxoAiOpen} />
     </div>
   );
 }

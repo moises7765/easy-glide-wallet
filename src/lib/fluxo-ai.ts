@@ -41,6 +41,7 @@ function parseMoney(text: string) {
   const match = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})|\d+(?:[.,]\d{1,2})?)/i);
   if (!match) return null;
   const raw = match[1];
+  if (!raw) return null;
   const value = raw.includes(",")
     ? Number(raw.replace(/\./g, "").replace(",", "."))
     : Number(raw);
@@ -55,8 +56,11 @@ function parseDateFromText(text: string) {
   }
   const explicit = text.match(/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/);
   if (!explicit) return toISODate(today);
+  const day = explicit[1];
+  const month = explicit[2];
+  if (!day || !month) return toISODate(today);
   const year = explicit[3] ? Number(explicit[3].length === 2 ? `20${explicit[3]}` : explicit[3]) : today.getFullYear();
-  return `${year}-${explicit[2].padStart(2, "0")}-${explicit[1].padStart(2, "0")}`;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 function closestNamed<T extends { id: string; name: string }>(text: string, rows: T[]) {
@@ -158,6 +162,7 @@ export function localFinancialAnswer(question: string, context: FluxoAiContext) 
   if (/meta/.test(value)) {
     if (context.goals.length === 0) return "Você ainda não tem metas cadastradas. Posso preparar uma nova meta para você.";
     const pending = context.goals.map((goal) => ({ ...goal, missing: Math.max(0, num(goal.target_amount) - num(goal.current_amount)) })).sort((a, b) => a.missing - b.missing)[0];
+    if (!pending) return "Você ainda não tem metas cadastradas. Posso preparar uma nova meta para você.";
     return `A meta mais próxima é **${pending.name}**. Faltam **${brl(pending.missing)}** para concluí-la.`;
   }
   return `Neste mês, entraram **${brl(income)}**, saíram **${brl(expense)}** e seu saldo é **${brl(balance)}**. ${balance >= 0 ? "Você está fechando o mês no positivo." : "Vale revisar as maiores despesas antes de assumir novos compromissos."}`;

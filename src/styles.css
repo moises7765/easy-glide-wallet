@@ -148,3 +148,24 @@
     transform: none;
   }
 }
+
+.fluxo-ai-fab {
+  animation: fluxo-ai-breathe 3.5s ease-in-out infinite;
+}
+
+@keyframes fluxo-ai-breathe {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: 0 10px 28px color-mix(in oklab, var(--color-primary) 16%, transparent);
+  }
+  50% {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px color-mix(in oklab, var(--color-primary) 28%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fluxo-ai-fab {
+    animation: none;
+  }
+}
