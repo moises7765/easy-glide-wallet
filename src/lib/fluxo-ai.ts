@@ -72,7 +72,7 @@ function parseMoney(text: string) {
   if (!match) return null;
   const raw = match[1];
   if (!raw) return null;
-  const value = raw.includes(",")
+  const value = raw.includes(",") || /^\d{1,3}(?:\.\d{3})+$/.test(raw)
     ? Number(raw.replace(/\./g, "").replace(",", "."))
     : Number(raw);
   return Number.isFinite(value) && value > 0 ? value : null;
@@ -183,11 +183,12 @@ export function parseLaunchCommand(raw: string, context: FluxoAiContext): Launch
   const explicit = /^(novo|nova)\s+(lancamento|gasto|despesa|receita|entrada|saida)\b|^(registra|registre|registrar|anota|anote|lanca|lance)\b|\b(gastei|paguei|comprei|recebi|ganhei)\b/.test(value);
   if (!explicit || !parseMoney(text)) return null;
   const typed = /\b(gastei|paguei|comprei|gasto|despesa|saida)\b/.test(value) || /\b(recebi|ganhei|receita|entrada|salario)\b/.test(value);
-  if (!typed) return { status: "needs_type", text };
-  const forced = /^(novo|nova)\s+(gasto|despesa|saida)/.test(value) ? "expense" : /^(novo|nova)\s+(receita|entrada)/.test(value) ? "income" : null;
-  const proposal = parseActionProposal(forced === "income" ? `${text} recebi` : text, context);
+  const genericLaunch = /^(novo|nova)\s+lancamento\b/.test(value) && transactionDescription(text, "expense") !== "Despesa";
+  if (!typed && !genericLaunch) return { status: "needs_type", text };
+  const forced = /^(novo|nova)\s+(gasto|despesa|saida|lancamento)/.test(value) ? "expense" : /^(novo|nova)\s+(receita|entrada)/.test(value) ? "income" : null;
+  const proposal = parseActionProposal(forced === "income" ? `${text} recebi` : forced === "expense" ? `${text} gastei` : text, context);
   if (!proposal || proposal.kind !== "transaction") return null;
-  if (forced === "income") proposal.description = transactionDescription(text, "income");
+  if (forced) proposal.description = transactionDescription(text, forced, proposal.cardName);
   if (proposal.installments > 1 && !proposal.cardId) return { status: "needs_card", proposal };
   return { status: "ready", proposal };
 }
@@ -198,7 +199,7 @@ export function completeLaunch(pending: LaunchCommand, answer: string, context: 
   if (pending.status === "needs_type") {
     const type = /saida|gasto|despesa|paguei|gastei/.test(value) ? "expense" : /entrada|receita|recebi|ganhei/.test(value) ? "income" : null;
     if (!type) return null;
-    return parseLaunchCommand(`${type === "expense" ? "gastei" : "recebi"} ${pending.text}`, context);
+    return parseLaunchCommand(`${pending.text} ${type === "expense" ? "gastei" : "recebi"}`, context);
   }
   if (pending.status === "needs_card") {
     const card = closestNamed(answer, context.cards);
