@@ -121,7 +121,7 @@ function transactionDescription(text: string, type: "expense" | "income", cardNa
     .replace(/\d+\s*(?:x|vezes|parcelas?)\b/gi, " ")
     .replace(/(?:r\$\s*)?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?/gi, "")
     .replace(/[,.!]/g, " ")
-    .replace(/(^|\s)(hoje|ontem|no|na|em|pelo|pela|com|de|do|da|por|um|uma|reais|real|conto|contos|cart[aã]o|pix|d[eé]bito|dinheiro|cr[eé]dito)(?=\s|$)/gi, " ")
+    .replace(/(^|\s)(hoje|ontem|no|na|em|pelo|pela|com|de|do|da|por|um|uma|reais|real|conto|contos|gastei|recebi|cart[aã]o|pix|d[eé]bito|dinheiro|cr[eé]dito)(?=\s|$)/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
   const withoutVerb = cleaned.replace(/^(gastei|paguei|comprei|recebi|ganhei|entrou|vendi)\s+/i, "");
