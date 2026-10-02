@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { supabase } from "@/integrations/supabase/client";
 import { executeFluxoAiAction } from "@/lib/fluxo-ai.functions";
-import { isExplicitConfirmation, localFinancialAnswer, parseActionProposal, proposalSummary, type ActionProposal, type FluxoAiContext } from "@/lib/fluxo-ai";
+import { completeLaunch, isExplicitConfirmation, launchDoneMessage, localFinancialAnswer, parseLaunchCommand, type LaunchCommand, parseActionProposal, proposalSummary, type ActionProposal, type FluxoAiContext } from "@/lib/fluxo-ai";
 import { useRows } from "@/lib/queries";
 
 type SpeechRecognitionEventLike = Event & { results: { [index: number]: { [index: number]: { transcript: string } } }; resultIndex: number };
@@ -96,6 +96,7 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   const context: FluxoAiContext = useMemo(() => ({ transactions, categories, cards, purchases, goals, assets }), [transactions, categories, cards, purchases, goals, assets]);
   const [draft, setDraft] = useState("");
   const [proposal, setProposal] = useState<ActionProposal | null>(null);
+  const [pendingLaunch, setPendingLaunch] = useState<LaunchCommand | null>(null);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -131,6 +132,48 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
     const text = raw.trim();
     if (!text || busy) return;
     setDraft("");
+    const handleLaunch = async (command: LaunchCommand) => {
+      if (command.status === "needs_type") {
+        setPendingLaunch(command);
+        addLocalMessage("assistant", "É uma entrada ou uma saída?");
+        return;
+      }
+      if (command.status === "needs_card") {
+        setPendingLaunch(command);
+        addLocalMessage("assistant", `Em qual cartão?${cards.length ? ` (${cards.map((card) => card.name).join(", ")})` : ""}`);
+        return;
+      }
+      setPendingLaunch(null);
+      try {
+        await executeAction({ data: command.proposal });
+        await queryClient.invalidateQueries();
+        addLocalMessage("assistant", launchDoneMessage(command.proposal));
+      } catch (actionError) {
+        const message = actionError instanceof Error ? actionError.message : "Não foi possível salvar o lançamento.";
+        addLocalMessage("assistant", `Não consegui salvar: ${message}`);
+      }
+    };
+    if (pendingLaunch) {
+      if (/^(cancelar|cancela|deixa|esquece)\b/i.test(text)) {
+        addLocalMessage("user", text);
+        setPendingLaunch(null);
+        addLocalMessage("assistant", "Tudo bem, nada foi registrado.");
+        return;
+      }
+      const completed = completeLaunch(pendingLaunch, text, context);
+      if (completed) {
+        addLocalMessage("user", text);
+        await handleLaunch(completed);
+        return;
+      }
+    }
+    const launch = parseLaunchCommand(text, context);
+    if (launch) {
+      addLocalMessage("user", text);
+      setProposal(null);
+      await handleLaunch(launch);
+      return;
+    }
     if (proposal && isExplicitConfirmation(text)) {
       addLocalMessage("user", text);
       try {
@@ -162,7 +205,7 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
       addLocalMessage("user", text);
       addLocalMessage("assistant", localFinancialAnswer(text, context));
     }
-  }, [addLocalMessage, busy, context, executeAction, proposal, queryClient, sendMessage]);
+  }, [addLocalMessage, busy, cards, context, executeAction, pendingLaunch, proposal, queryClient, sendMessage]);
 
   function toggleListening() {
     if (listening) {
