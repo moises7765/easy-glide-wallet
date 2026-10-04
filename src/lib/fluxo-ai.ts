@@ -217,8 +217,8 @@ export function launchDoneMessage(p: TransactionProposal) {
   return `✅ ${p.installments > 1 ? "Compra parcelada adicionada" : "Lançamento adicionado"}: ${brl(p.amount)} · ${p.description} · ${method} · ${when}.`;
 }
 
-export function isExplicitConfirmation(text: string) {
-  return /^(sim|pode|pode sim|confirmo|confirmar|adicione|adicionar|salvar|registre|registrar)[.!\s]*$/i.test(text.trim());
+export function isFinancialQuestion(text: string) {
+  return QUESTION.test(normalize(text).trim());
 }
 
 export function proposalSummary(proposal: ActionProposal) {
