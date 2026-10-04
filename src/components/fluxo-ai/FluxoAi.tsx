@@ -2,7 +2,7 @@ import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { DefaultChatTransport, type ChatStatus, type UIMessage } from "ai";
-import { Check, Mic, Square, Volume2, VolumeX, X } from "lucide-react";
+import { Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { supabase } from "@/integrations/supabase/client";
 import { executeFluxoAiAction } from "@/lib/fluxo-ai.functions";
-import { completeLaunch, isExplicitConfirmation, launchDoneMessage, localFinancialAnswer, parseLaunchCommand, type LaunchCommand, parseActionProposal, proposalSummary, type ActionProposal, type FluxoAiContext } from "@/lib/fluxo-ai";
+import { completeLaunch, isFinancialQuestion, launchDoneMessage, localFinancialAnswer, parseLaunchCommand, type LaunchCommand, parseActionProposal, proposalSummary, type FluxoAiContext } from "@/lib/fluxo-ai";
 import { useRows } from "@/lib/queries";
 
 type SpeechRecognitionEventLike = Event & { results: { [index: number]: { [index: number]: { transcript: string } } }; resultIndex: number };
@@ -54,20 +54,6 @@ export function FluxoAiButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function ProposalCard({ proposal, pending, onConfirm, onCancel }: { proposal: ActionProposal; pending: boolean; onConfirm: () => void; onCancel: () => void }) {
-  return (
-    <div className="surface mt-3 border-primary/25 p-3">
-      <p className="text-[11px] font-medium uppercase text-primary">Ação preparada</p>
-      <p className="mt-1 text-sm leading-relaxed">{proposalSummary(proposal)}</p>
-      <p className="mt-1 text-xs text-muted-foreground">Nada será alterado sem sua confirmação.</p>
-      <div className="mt-3 flex gap-2">
-        <Button size="sm" className="flex-1" disabled={pending} onClick={onConfirm}><Check /> Confirmar</Button>
-        <Button size="sm" variant="outline" className="flex-1" disabled={pending} onClick={onCancel}><X /> Cancelar</Button>
-      </div>
-    </div>
-  );
-}
-
 function ChatMessage({ message, onSpeak, speaking }: { message: UIMessage; onSpeak: (text: string) => void; speaking: boolean }) {
   const text = textOf(message);
   return (
@@ -95,7 +81,6 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   const { data: assets = [] } = useRows("assets");
   const context: FluxoAiContext = useMemo(() => ({ transactions, categories, cards, purchases, goals, assets }), [transactions, categories, cards, purchases, goals, assets]);
   const [draft, setDraft] = useState("");
-  const [proposal, setProposal] = useState<ActionProposal | null>(null);
   const [pendingLaunch, setPendingLaunch] = useState<LaunchCommand | null>(null);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -170,33 +155,23 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
     const launch = parseLaunchCommand(text, context);
     if (launch) {
       addLocalMessage("user", text);
-      setProposal(null);
       await handleLaunch(launch);
       return;
     }
-    if (proposal && isExplicitConfirmation(text)) {
+    const action = isFinancialQuestion(text) ? null : parseActionProposal(text, context);
+    if (action) {
       addLocalMessage("user", text);
-      try {
-        await executeAction({ data: proposal });
-        queryClient.invalidateQueries();
-        addLocalMessage("assistant", proposal.kind === "goal" ? "Meta criada com sucesso." : proposal.installments > 1 ? "Compra parcelada adicionada com sucesso." : "Lançamento adicionado com sucesso.");
-        setProposal(null);
-      } catch (actionError) {
-        toast.error(actionError instanceof Error ? actionError.message : "Não foi possível concluir a ação.");
+      if (action.kind === "transaction") {
+        await handleLaunch(action.installments > 1 && !action.cardId ? { status: "needs_card", proposal: action } : { status: "ready", proposal: action });
+        return;
       }
-      return;
-    }
-    const nextProposal = parseActionProposal(text, context);
-    if (nextProposal) {
-      addLocalMessage("user", text);
-      setProposal(nextProposal);
-      addLocalMessage("assistant", `Entendi: **${proposalSummary(nextProposal)}**. Posso adicionar?`);
-      return;
-    }
-    if (proposal && /cancelar|nao|não/.test(text.toLowerCase())) {
-      addLocalMessage("user", text);
-      setProposal(null);
-      addLocalMessage("assistant", "Tudo bem. A ação foi cancelada e nenhum dado foi alterado.");
+      try {
+        await executeAction({ data: action });
+        await queryClient.invalidateQueries();
+        addLocalMessage("assistant", `✅ Meta criada: ${proposalSummary(action)}.`);
+      } catch (actionError) {
+        addLocalMessage("assistant", `Não consegui criar a meta: ${actionError instanceof Error ? actionError.message : "erro desconhecido"}`);
+      }
       return;
     }
     try {
@@ -205,7 +180,7 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
       addLocalMessage("user", text);
       addLocalMessage("assistant", localFinancialAnswer(text, context));
     }
-  }, [addLocalMessage, busy, cards, context, executeAction, pendingLaunch, proposal, queryClient, sendMessage]);
+  }, [addLocalMessage, busy, cards, context, executeAction, pendingLaunch, queryClient, sendMessage]);
 
   function toggleListening() {
     if (listening) {
@@ -276,7 +251,6 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
                 </div>
               ) : messages.map((message) => <ChatMessage key={message.id} message={message} onSpeak={speak} speaking={speaking} />)}
               {status === "submitted" ? <Shimmer className="text-sm">Analisando seus dados...</Shimmer> : null}
-              {proposal ? <ProposalCard proposal={proposal} pending={false} onConfirm={() => void submitText("sim")} onCancel={() => void submitText("cancelar")} /> : null}
               {error ? <p className="text-sm text-destructive">{friendlyError(error)}</p> : null}
             </ConversationContent>
             <ConversationScrollButton />
