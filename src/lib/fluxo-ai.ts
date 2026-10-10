@@ -78,19 +78,63 @@ function parseMoney(text: string) {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
-function parseDateFromText(text: string) {
+const BRASILIA_TZ = "America/Sao_Paulo";
+const WEEKDAYS: Array<[RegExp, number]> = [
+  [/domingo/, 0], [/segunda/, 1], [/terca/, 2], [/quarta/, 3], [/quinta/, 4], [/sexta/, 5], [/sabado/, 6],
+];
+
+/** Calendar date (y, m, d) for "now" in Brasília, independent of the device/server timezone. */
+export function brasiliaToday(now: Date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: BRASILIA_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return { y: get("year"), m: get("month"), d: get("day") };
+}
+
+function isoFrom(y: number, m: number, d: number, offsetDays = 0) {
+  const date = new Date(Date.UTC(y, m - 1, d + offsetDays));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+export type DateResolution = { date: string } | { ambiguous: true } | null;
+
+/** Resolves natural-language dates (hoje, ontem, segunda passada, dia 5, 12/09) in Brasília time. null = no date mentioned. */
+export function resolveNaturalDate(text: string, now: Date = new Date()): DateResolution {
   const value = normalize(text);
-  const today = new Date();
-  if (value.includes("ontem")) {
-    today.setDate(today.getDate() - 1);
+  const { y, m, d } = brasiliaToday(now);
+  if (/depois de amanha/.test(value)) return { date: isoFrom(y, m, d, 2) };
+  if (/anteontem|antes de ontem/.test(value)) return { date: isoFrom(y, m, d, -2) };
+  if (/\bontem\b/.test(value)) return { date: isoFrom(y, m, d, -1) };
+  if (/\bamanha\b/.test(value)) return { date: isoFrom(y, m, d, 1) };
+  if (/\bhoje\b/.test(value)) return { date: isoFrom(y, m, d) };
+  const explicit = value.match(/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/);
+  if (explicit?.[1] && explicit[2]) {
+    const year = explicit[3] ? Number(explicit[3].length === 2 ? `20${explicit[3]}` : explicit[3]) : y;
+    return { date: isoFrom(year, Number(explicit[2]), Number(explicit[1])) };
   }
-  const explicit = text.match(/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/);
-  if (!explicit) return toISODate(today);
-  const day = explicit[1];
-  const month = explicit[2];
-  if (!day || !month) return toISODate(today);
-  const year = explicit[3] ? Number(explicit[3].length === 2 ? `20${explicit[3]}` : explicit[3]) : today.getFullYear();
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  const dayOnly = value.match(/\bdia\s+(\d{1,2})\b/);
+  if (dayOnly?.[1]) {
+    const day = Number(dayOnly[1]);
+    if (day < 1 || day > 31) return { ambiguous: true };
+    return day <= d ? { date: isoFrom(y, m, day) } : { date: isoFrom(y, m - 1, day) };
+  }
+  const weekday = WEEKDAYS.find(([pattern]) => pattern.test(value));
+  if (weekday) {
+    const todayDow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    const target = weekday[1];
+    if (/proxim|que vem|seguinte/.test(value)) {
+      const ahead = ((target - todayDow + 7) % 7) || 7;
+      return { date: isoFrom(y, m, d, ahead) };
+    }
+    const back = (todayDow - target + 7) % 7;
+    if (back === 0) return /passad|ultim/.test(value) ? { date: isoFrom(y, m, d, -7) } : { ambiguous: true };
+    return { date: isoFrom(y, m, d, -back) };
+  }
+  return null;
+}
+
+function parseDateFromText(text: string) {
+  const resolved = resolveNaturalDate(text);
+  return resolved && "date" in resolved ? resolved.date : isoFrom(brasiliaToday().y, brasiliaToday().m, brasiliaToday().d);
 }
 
 function closestNamed<T extends { id: string; name: string }>(text: string, rows: T[]) {
@@ -119,6 +163,9 @@ function transactionDescription(text: string, type: "expense" | "income", cardNa
   if (cardName) base = base.replace(new RegExp(cardName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ");
   const cleaned = base
     .replace(/\d+\s*(?:x|vezes|parcelas?)\b/gi, " ")
+    .replace(/\b\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?\b/g, " ")
+    .replace(/\bdia\s+\d{1,2}\b/gi, " ")
+    .replace(/(^|\s)(depois de amanh[aã]|antes de ontem|anteontem|amanh[aã]|(?:n[ao]\s+)?(?:pr[oó]xim[ao]|[uú]ltim[ao])?\s*(?:domingo|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado)(?:-feira)?(?:\s+(?:passad[ao]|que vem|seguinte))?)(?=\s|$|[,.!])/gi, " ")
     .replace(/(?:r\$\s*)?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?/gi, "")
     .replace(/[,.!]/g, " ")
     .replace(/(^|\s)(hoje|ontem|no|na|em|pelo|pela|com|de|do|da|por|um|uma|reais|real|conto|contos|gastei|recebi|cart[aã]o|pix|d[eé]bito|dinheiro|cr[eé]dito)(?=\s|$)/gi, " ")
@@ -171,7 +218,8 @@ export function parseActionProposal(text: string, context: FluxoAiContext): Acti
 export type LaunchCommand =
   | { status: "ready"; proposal: TransactionProposal }
   | { status: "needs_type"; text: string }
-  | { status: "needs_card"; proposal: TransactionProposal };
+  | { status: "needs_card"; proposal: TransactionProposal }
+  | { status: "needs_date"; proposal: TransactionProposal };
 
 const QUESTION = /^(quanto|quantos|quantas|qual|quais|quando|onde|como|por que|porque|o que|quem|sera|devo|posso)\b|\?\s*$/;
 
@@ -180,15 +228,19 @@ export function parseLaunchCommand(raw: string, context: FluxoAiContext): Launch
   const text = wordsToDigits(raw);
   const value = normalize(text).trim();
   if (QUESTION.test(value)) return null;
-  const explicit = /^(novo|nova)\s+(lancamento|gasto|despesa|receita|entrada|saida)\b|^(registra|registre|registrar|anota|anote|lanca|lance)\b|\b(gastei|paguei|comprei|recebi|ganhei)\b/.test(value);
+  const paymentHint = /\b(pix|debito|credito|dinheiro|cartao)\b/.test(value) || context.cards.some((card) => value.includes(normalize(card.name)));
+  const explicit = (paymentHint && /^(r\$\s*)?\d/.test(value)) || /^(novo|nova)\s+(lancamento|gasto|despesa|receita|entrada|saida)\b|^(registra|registre|registrar|anota|anote|lanca|lance)\b|\b(gastei|paguei|comprei|recebi|ganhei)\b/.test(value);
   if (!explicit || !parseMoney(text)) return null;
   const typed = /\b(gastei|paguei|comprei|gasto|despesa|saida)\b/.test(value) || /\b(recebi|ganhei|receita|entrada|salario)\b/.test(value);
   const genericLaunch = /^(novo|nova)\s+lancamento\b/.test(value) && transactionDescription(text, "expense") !== "Despesa";
-  if (!typed && !genericLaunch) return { status: "needs_type", text };
-  const forced = /^(novo|nova)\s+(gasto|despesa|saida|lancamento)/.test(value) ? "expense" : /^(novo|nova)\s+(receita|entrada)/.test(value) ? "income" : null;
+  const implicitExpense = !typed && paymentHint && /^(r\$\s*)?\d/.test(value) && !/\b(recebi|ganhei|salario|renda|entrada|vendi)\b/.test(value);
+  if (!typed && !genericLaunch && !implicitExpense) return { status: "needs_type", text };
+  const forced = implicitExpense || /^(novo|nova)\s+(gasto|despesa|saida|lancamento)/.test(value) ? "expense" : /^(novo|nova)\s+(receita|entrada)/.test(value) ? "income" : null;
   const proposal = parseActionProposal(forced === "income" ? `${text} recebi` : forced === "expense" ? `${text} gastei` : text, context);
   if (!proposal || proposal.kind !== "transaction") return null;
   if (forced) proposal.description = transactionDescription(text, forced, proposal.cardName);
+  const when = resolveNaturalDate(text);
+  if (when && "ambiguous" in when) return { status: "needs_date", proposal };
   if (proposal.installments > 1 && !proposal.cardId) return { status: "needs_card", proposal };
   return { status: "ready", proposal };
 }
@@ -201,6 +253,13 @@ export function completeLaunch(pending: LaunchCommand, answer: string, context: 
     if (!type) return null;
     return parseLaunchCommand(`${pending.text} ${type === "expense" ? "gastei" : "recebi"}`, context);
   }
+  if (pending.status === "needs_date") {
+    const when = resolveNaturalDate(answer);
+    if (!when || !("date" in when)) return null;
+    const proposal = { ...pending.proposal, date: when.date };
+    if (proposal.installments > 1 && !proposal.cardId) return { status: "needs_card", proposal };
+    return { status: "ready", proposal };
+  }
   if (pending.status === "needs_card") {
     const card = closestNamed(answer, context.cards);
     if (!card) return null;
@@ -212,7 +271,8 @@ export function completeLaunch(pending: LaunchCommand, answer: string, context: 
 const METHOD_LABEL: Record<string, string> = { pix: "Pix", debit: "Débito", cash: "Dinheiro", transfer: "Transferência", credito: "Crédito" };
 
 export function launchDoneMessage(p: TransactionProposal) {
-  const when = p.date === toISODate(new Date()) ? "hoje" : parseDate(p.date).toLocaleDateString("pt-BR");
+  const t = brasiliaToday();
+  const when = p.date === isoFrom(t.y, t.m, t.d) ? "hoje" : p.date === isoFrom(t.y, t.m, t.d, -1) ? "ontem" : parseDate(p.date).toLocaleDateString("pt-BR");
   const method = p.cardName ? `${p.cardName}${p.installments > 1 ? ` ${p.installments}x` : ""}` : METHOD_LABEL[p.paymentMethod] ?? p.paymentMethod;
   return `✅ ${p.installments > 1 ? "Compra parcelada adicionada" : "Lançamento adicionado"}: ${brl(p.amount)} · ${p.description} · ${method} · ${when}.`;
 }
