@@ -123,6 +123,11 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
         addLocalMessage("assistant", "É uma entrada ou uma saída?");
         return;
       }
+      if (command.status === "needs_date") {
+        setPendingLaunch(command);
+        addLocalMessage("assistant", "Qual dia foi? (ex.: hoje, ontem, sexta passada, dia 5)");
+        return;
+      }
       if (command.status === "needs_card") {
         setPendingLaunch(command);
         addLocalMessage("assistant", `Em qual cartão?${cards.length ? ` (${cards.map((card) => card.name).join(", ")})` : ""}`);
