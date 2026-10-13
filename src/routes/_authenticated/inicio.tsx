@@ -4,6 +4,7 @@ import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip } fr
 
 import { PageHeader, Panel, ProgressBar, StatCard } from "@/components/finance-ui";
 import { UserAvatar } from "@/components/UserAvatar";
+import { SavingsRate } from "@/components/SavingsRate";
 import {
   brl,
   brlShort,
@@ -26,13 +27,15 @@ export const Route = createFileRoute("/_authenticated/inicio")({
       { name: "description", content: "Painel com saldo, gastos do mês, patrimônio e metas." },
       { property: "og:title", content: "Início — Fluxo Finanças" },
       { property: "og:description", content: "Painel com saldo, gastos do mês, patrimônio e metas." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Dashboard,
 });
 
 function Dashboard() {
-  const { data: transactions = [] } = useRows("transactions");
+  const { data: transactions = [], isPending: transactionsLoading, isError: transactionsError } = useRows("transactions");
   const { data: categories = [] } = useRows("categories");
   const { data: cards = [] } = useRows("cards");
   const { data: purchases = [] } = useRows("installment_purchases");
@@ -144,17 +147,7 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 px-5">
-        <StatCard
-          label="Patrimônio líquido"
-          value={brl(stats.netWorth)}
-          hint={
-            stats.netWorthChange > 0
-              ? `↑ ${brl(stats.netWorthChange)} este mês`
-              : stats.netWorthChange < 0
-                ? `↓ ${brl(-stats.netWorthChange)} este mês`
-                : `${brl(0)} este mês`
-          }
-        />
+        <SavingsRate transactions={transactions} loading={transactionsLoading} error={transactionsError} />
         <StatCard
           label="Comprometido"
           value={brl(stats.committed)}
