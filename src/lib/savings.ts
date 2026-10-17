@@ -1,6 +1,15 @@
 import { addMonths, monthKey, num } from "@/lib/finance";
 
-type SavingsTransaction = { date: string; type: string; amount: number | string };
+type SavingsTransaction = { date: string; type: string; amount: number | string; invoice_payment_id?: string | null };
+
+/**
+ * Consumption expense: an expense that is not an automatic card-invoice payment.
+ * Card purchases already count as expenses when they happen, so invoice payments
+ * (invoice_payment_id IS NOT NULL) are cash outflow only, never consumption.
+ */
+export function isConsumptionExpense(t: SavingsTransaction) {
+  return t.type === "expense" && !t.invoice_payment_id;
+}
 
 export type SavingsMonth = {
   key: string;
@@ -18,9 +27,9 @@ export function savingsMonthKey(now = new Date()) {
   return `${parts.find((p) => p.type === "year")?.value}-${parts.find((p) => p.type === "month")?.value}`;
 }
 
-/** Uses the same recorded income/expense totals as Home; no synthetic rows or extra invoice charges. */
+/** Savings rate = (income − consumption expenses) ÷ income × 100. Invoice payments are excluded to avoid double counting card purchases. */
 export function savingsForMonth(transactions: SavingsTransaction[], key: string): SavingsMonth {
-  const rows = transactions.filter((t) => t.date.slice(0, 7) === key && (t.type === "income" || t.type === "expense"));
+  const rows = transactions.filter((t) => t.date.slice(0, 7) === key && (t.type === "income" || isConsumptionExpense(t)));
   const income = rows.filter((t) => t.type === "income").reduce((sum, t) => sum + num(t.amount), 0);
   const expenses = rows.filter((t) => t.type === "expense").reduce((sum, t) => sum + num(t.amount), 0);
   const saved = income - expenses;
