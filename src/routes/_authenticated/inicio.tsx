@@ -5,6 +5,7 @@ import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip } fr
 import { PageHeader, Panel, ProgressBar, StatCard } from "@/components/finance-ui";
 import { UserAvatar } from "@/components/UserAvatar";
 import { SavingsRate } from "@/components/SavingsRate";
+import { isConsumptionExpense } from "@/lib/savings";
 import {
   brl,
   brlShort,
