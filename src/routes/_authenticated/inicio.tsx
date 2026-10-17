@@ -5,6 +5,7 @@ import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip } fr
 import { PageHeader, Panel, ProgressBar, StatCard } from "@/components/finance-ui";
 import { UserAvatar } from "@/components/UserAvatar";
 import { SavingsRate } from "@/components/SavingsRate";
+import { isConsumptionExpense } from "@/lib/savings";
 import {
   brl,
   brlShort,
@@ -55,6 +56,10 @@ function Dashboard() {
     const monthOut = transactions
       .filter((t) => t.type === "expense" && monthKey(t.date) === current)
       .reduce((s, t) => s + num(t.amount), 0);
+    // Consumption: excludes automatic invoice payments (card purchases already counted).
+    const monthConsumption = transactions
+      .filter((t) => isConsumptionExpense(t) && monthKey(t.date) === current)
+      .reduce((s, t) => s + num(t.amount), 0);
     const netWorth = assets.reduce((s, a) => s + num(a.value), 0);
     const committed = purchases.reduce((s, p) => s + remainingOf(p).total, 0);
 
@@ -66,13 +71,13 @@ function Dashboard() {
     const baselineNetWorth = baselineSnapshot ? num(baselineSnapshot.total) : 0;
     const netWorthChange = netWorth - baselineNetWorth;
 
-    return { balance: monthIn - monthOut, monthIn, monthOut, netWorth, committed, netWorthChange };
+    return { balance: monthIn - monthOut, monthIn, monthOut, monthConsumption, netWorth, committed, netWorthChange };
   }, [transactions, assets, purchases, snapshots, current]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; color: string; value: number }>();
     transactions
-      .filter((t) => t.type === "expense" && monthKey(t.date) === current)
+      .filter((t) => isConsumptionExpense(t) && monthKey(t.date) === current)
       .forEach((t) => {
         const cat = categories.find((c) => c.id === t.category_id);
         const key = cat?.id ?? "none";
@@ -126,6 +131,7 @@ function Dashboard() {
       <div className="px-5">
         <Panel className="bg-gradient-to-br from-primary/15 to-transparent">
           <p className="text-xs tracking-wide text-muted-foreground uppercase">Saldo do mês</p>
+          <p className="text-[11px] text-muted-foreground">Fluxo de caixa · inclui pagamentos de fatura</p>
           <p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums">
             {brl(stats.balance)}
           </p>
@@ -143,6 +149,9 @@ function Dashboard() {
               <p className="font-semibold tabular-nums">{brl(stats.monthIn - stats.monthOut)}</p>
             </div>
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Consumo do mês <span className="font-medium text-foreground tabular-nums">{brl(stats.monthConsumption)}</span> · sem pagamentos de fatura
+          </p>
         </Panel>
       </div>
 
@@ -160,7 +169,7 @@ function Dashboard() {
         <Panel>
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">Fluxo dos últimos 12 meses</p>
-            <span className="text-xs text-muted-foreground">entradas x saídas</span>
+            <span className="text-xs text-muted-foreground">entradas x saídas de caixa</span>
           </div>
           <div className="mt-3 h-36">
             <ResponsiveContainer width="100%" height="100%">
@@ -213,6 +222,7 @@ function Dashboard() {
         <div className="px-5">
           <Panel>
             <p className="text-sm font-medium">Gastos do mês</p>
+            <p className="text-[11px] text-muted-foreground">Consumo · sem pagamentos de fatura</p>
             <div className="mt-2 flex items-center gap-4">
               <div className="h-32 w-32 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">

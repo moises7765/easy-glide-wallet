@@ -70,9 +70,9 @@ export function SavingsRate({ transactions, loading, error }: {
               <p className={cn("mt-4 text-3xl font-semibold tabular-nums", month.rate !== null && (month.rate < 0 ? "text-destructive" : "text-primary"))}>{savingsPercent(month.rate)}</p>
               {status ? <p className="mt-2 text-sm text-muted-foreground">{status}. {month.rate === null ? "A taxa precisa de receita maior que zero." : ""}</p> : null}
               <dl className="mt-4 divide-y divide-border text-sm">
-                {[["Receita", month.income], ["Despesas", month.expenses], ["Valor poupado", month.saved]].map(([label, amount]) => <div key={String(label)} className="flex items-center justify-between gap-3 py-3"><dt className="text-muted-foreground">{label}</dt><dd className={cn("font-semibold tabular-nums", Number(amount) < 0 && "text-destructive")}>{month.hasData ? brl(Number(amount)) : "—"}</dd></div>)}
+                {[["Receita", month.income], ["Despesas de consumo", month.expenses], ["Valor poupado", month.saved]].map(([label, amount]) => <div key={String(label)} className="flex items-center justify-between gap-3 py-3"><dt className="text-muted-foreground">{label}</dt><dd className={cn("font-semibold tabular-nums", Number(amount) < 0 && "text-destructive")}>{month.hasData ? brl(Number(amount)) : "—"}</dd></div>)}
               </dl>
-              <p className="mt-2 text-xs text-muted-foreground">(Receita − despesas) ÷ receita × 100 · mês em andamento</p>
+              <p className="mt-2 text-xs text-muted-foreground">(Receita − despesas de consumo) ÷ receita × 100 · pagamentos de fatura não contam (as compras do cartão já contaram) · mês em andamento</p>
               <Button variant="link" className="mt-4 px-0" onClick={() => setHistoryOpen(true)}>Ver histórico completo <ArrowRight /></Button>
             </>
           )}

@@ -25,6 +25,19 @@ describe("savings rate", () => {
     expect(rows[11]?.key).toBe("2026-01");
     expect(rows.every((row) => row.rate === null && !row.hasData)).toBe(true);
   });
+  it("excludes invoice payments from consumption (October 2026 real totals)", () => {
+    const rows = [
+      { type: "income", amount: 2206, date: "2026-10-04" },
+      { type: "expense", amount: 399.9, date: "2026-10-09" },
+      { type: "expense", amount: 1980.52, date: "2026-10-08", invoice_payment_id: "a" },
+      { type: "expense", amount: 117.68, date: "2026-10-07", invoice_payment_id: "b" },
+    ];
+    const r = savingsForMonth(rows, "2026-10");
+    expect(r.expenses).toBeCloseTo(399.9, 2);
+    expect(r.saved).toBeCloseTo(1806.1, 2);
+    const cashOut = rows.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    expect(2206 - cashOut).toBeCloseTo(-292.1, 2);
+  });
   it("uses the calendar month in Brasilia at a UTC month boundary", () => {
     expect(savingsMonthKey(new Date("2026-11-01T01:00:00Z"))).toBe("2026-10");
   });
