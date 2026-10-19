@@ -252,7 +252,7 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
     <Drawer open={open} onOpenChange={onOpenChange}>
       {/* Altura limitada pela área visível (DrawerContent): com o teclado aberto a conversa encolhe e o campo fica acima dele. */}
       <DrawerContent className="mx-auto h-[92dvh] w-full max-w-2xl border-border bg-popover">
-        <DrawerHeader className="shrink-0 flex-row items-center gap-3 border-b border-border px-4 py-3 text-left">
+        <DrawerHeader className="flex shrink-0 flex-row items-center gap-3 border-b border-border px-4 py-3 text-left">
           <img src={fluxoAiMark} alt="" width={512} height={512} className="h-10 w-10 object-contain" />
           <div className="min-w-0 flex-1"><DrawerTitle>Fluxo IA</DrawerTitle><DrawerDescription>Seu copiloto financeiro</DrawerDescription></div>
         </DrawerHeader>
