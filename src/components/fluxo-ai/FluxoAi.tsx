@@ -101,9 +101,21 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   });
   const busy = status === "submitted" || status === "streaming";
 
+  // Foco sem rolar a página. Antes o foco ocorria 180 ms após abrir (gaveta ainda
+  // animando) e a cada mudança de status, o que no iPhone reabria o teclado e
+  // deslocava a tela. Agora: foco ao terminar a animação de abertura e, depois de
+  // cada resposta, só em telas com mouse/trackpad (no toque o teclado não reabre sozinho).
+  const focusInput = useCallback(() => inputRef.current?.focus({ preventScroll: true }), []);
   useEffect(() => {
-    if (open) window.setTimeout(() => inputRef.current?.focus(), 180);
-  }, [open, status]);
+    if (!open) return;
+    // 520 ms ≈ duração da animação de abertura da gaveta.
+    const timer = window.setTimeout(focusInput, 520);
+    return () => window.clearTimeout(timer);
+  }, [focusInput, open]);
+  useEffect(() => {
+    if (!open || status !== "ready") return;
+    if (window.matchMedia?.("(pointer: fine)").matches) focusInput();
+  }, [focusInput, open, status]);
   useEffect(() => () => {
     recognitionRef.current?.abort();
     window.speechSynthesis?.cancel();
@@ -237,9 +249,10 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
-      <DrawerContent className="mx-auto h-[92dvh] max-w-2xl border-border bg-popover">
-        <DrawerHeader className="flex-row items-center gap-3 border-b border-border px-4 py-3 text-left">
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      {/* Altura limitada pela área visível (DrawerContent): com o teclado aberto a conversa encolhe e o campo fica acima dele. */}
+      <DrawerContent className="mx-auto h-[92dvh] w-full max-w-2xl border-border bg-popover">
+        <DrawerHeader className="flex shrink-0 flex-row items-center gap-3 border-b border-border px-4 py-3 text-left">
           <img src={fluxoAiMark} alt="" width={512} height={512} className="h-10 w-10 object-contain" />
           <div className="min-w-0 flex-1"><DrawerTitle>Fluxo IA</DrawerTitle><DrawerDescription>Seu copiloto financeiro</DrawerDescription></div>
         </DrawerHeader>
@@ -260,7 +273,7 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
             </ConversationContent>
             <ConversationScrollButton />
           </Conversation>
-          <div className="border-t border-border bg-popover px-3 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="shrink-0 border-t border-border bg-popover px-3 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {listening ? <p className="mb-2 text-center text-xs font-medium text-primary">Ouvindo… toque no microfone para parar</p> : null}
             <PromptInput onSubmit={(message) => void submitText(message.text)} className="bg-background">
               <PromptInputTextarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Pergunte ou registre uma movimentação…" className="min-h-12" />
