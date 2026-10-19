@@ -85,7 +85,7 @@ function useVisualViewportAnchor(el: HTMLElement | null) {
       const keyboard = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
       el.style.setProperty("--drawer-keyboard", `${Math.round(keyboard)}px`);
       el.style.setProperty("--drawer-viewport", `${Math.round(viewportHeight)}px`);
-      el.dataset.keyboard = keyboard > 80 ? "open" : "closed";
+      el.dataset["keyboard"] = keyboard > 80 ? "open" : "closed";
       const active = document.activeElement;
       if (keyboard > 80 && isTextField(active) && el.contains(active)) revealInDrawerScroller(active);
     };
