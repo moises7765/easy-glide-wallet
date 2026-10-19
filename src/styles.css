@@ -134,6 +134,16 @@
   border-radius: var(--radius-xl);
 }
 
+/*
+ * Gavetas inferiores ancoradas na área visível real (acima do teclado no iOS).
+ * As variáveis são atualizadas por DrawerContent a partir do visualViewport;
+ * os valores de fallback cobrem o primeiro frame e navegadores sem a API.
+ */
+@utility drawer-viewport-anchor {
+  bottom: var(--drawer-keyboard, 0px);
+  max-height: calc(var(--drawer-viewport, 100dvh) - env(safe-area-inset-top) - 0.75rem);
+}
+
 @utility fade-up {
   animation: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
