@@ -70,9 +70,8 @@ function isTextField(el: Element | null): el is HTMLElement {
  * visualViewport. Funciona mesmo se o Safari rolar a página ao abrir o teclado:
  * a borda inferior fica sempre em `offsetTop + height` do viewport visual.
  */
-function useVisualViewportAnchor(ref: React.RefObject<HTMLElement | null>) {
+function useVisualViewportAnchor(el: HTMLElement | null) {
   React.useLayoutEffect(() => {
-    const el = ref.current;
     if (!el) return;
     const vv = window.visualViewport;
     const standalone =
@@ -123,23 +122,25 @@ function useVisualViewportAnchor(ref: React.RefObject<HTMLElement | null>) {
         });
       }
     };
-  }, [ref]);
+  }, [el]);
 }
 
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
 >(({ className, children, ...props }, forwardedRef) => {
-  const innerRef = React.useRef<HTMLDivElement | null>(null);
+  // Estado (não ref): o Portal monta o conteúdo depois do primeiro render.
+  const [node, setNode] = React.useState<HTMLDivElement | null>(null);
   const setRef = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      innerRef.current = node;
+    (element: HTMLDivElement | null) => {
+      setNode(element);
+      const node = element;
       if (typeof forwardedRef === "function") forwardedRef(node);
       else if (forwardedRef) forwardedRef.current = node;
     },
     [forwardedRef],
   );
-  useVisualViewportAnchor(innerRef);
+  useVisualViewportAnchor(node);
 
   return (
     <DrawerPortal>
