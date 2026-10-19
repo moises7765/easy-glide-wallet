@@ -107,6 +107,12 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   // cada resposta, só em telas com mouse/trackpad (no toque o teclado não reabre sozinho).
   const focusInput = useCallback(() => inputRef.current?.focus({ preventScroll: true }), []);
   useEffect(() => {
+    if (!open) return;
+    // 520 ms ≈ duração da animação de abertura da gaveta.
+    const timer = window.setTimeout(focusInput, 520);
+    return () => window.clearTimeout(timer);
+  }, [focusInput, open]);
+  useEffect(() => {
     if (!open || status !== "ready") return;
     if (window.matchMedia?.("(pointer: fine)").matches) focusInput();
   }, [focusInput, open, status]);
@@ -243,7 +249,7 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} onAnimationEnd={(isOpen) => { if (isOpen) focusInput(); }}>
+    <Drawer open={open} onOpenChange={onOpenChange}>
       {/* Altura limitada pela área visível (DrawerContent): com o teclado aberto a conversa encolhe e o campo fica acima dele. */}
       <DrawerContent className="mx-auto h-[92dvh] w-full max-w-2xl border-border bg-popover">
         <DrawerHeader className="shrink-0 flex-row items-center gap-3 border-b border-border px-4 py-3 text-left">
