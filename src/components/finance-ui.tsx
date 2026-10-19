@@ -111,11 +111,17 @@ export function BottomSheet({
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[92vh] border-border bg-popover">
-        <DrawerHeader className="pb-2 text-left">
+      {/* Altura máxima e posição vêm de DrawerContent (área visível real, acima do teclado). */}
+      <DrawerContent className="mx-auto w-full max-w-md border-border bg-popover">
+        <DrawerHeader className="shrink-0 pb-2 text-left">
           <DrawerTitle className="text-lg">{title}</DrawerTitle>
         </DrawerHeader>
-        <div className="overflow-y-auto px-4 pb-8">{children}</div>
+        <div
+          data-drawer-scroll
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1rem))]"
+        >
+          {children}
+        </div>
       </DrawerContent>
     </Drawer>
   );

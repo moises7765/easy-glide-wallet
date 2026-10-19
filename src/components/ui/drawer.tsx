@@ -134,9 +134,8 @@ const DrawerContent = React.forwardRef<
   const setRef = React.useCallback(
     (element: HTMLDivElement | null) => {
       setNode(element);
-      const node = element;
-      if (typeof forwardedRef === "function") forwardedRef(node);
-      else if (forwardedRef) forwardedRef.current = node;
+      if (typeof forwardedRef === "function") forwardedRef(element);
+      else if (forwardedRef) forwardedRef.current = element;
     },
     [forwardedRef],
   );

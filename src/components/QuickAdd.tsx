@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { BottomSheet } from "@/components/finance-ui";
 import { ReceiptField } from "@/components/ReceiptField";
@@ -24,6 +24,13 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [note, setNote] = useState("");
   const [more, setMore] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptRef | null>(null);
+  // Foca o valor ao abrir sem deixar o navegador rolar a página: o `autoFocus`
+  // disparava com a gaveta ainda fora da tela (animação de entrada) e o iOS
+  // deslocava a página para "mostrar" o campo, deixando espaço vazio.
+  const focusAmount = useCallback((node: HTMLInputElement | null) => {
+    node?.focus({ preventScroll: true });
+  }, []);
+
 
 
 
@@ -111,8 +118,9 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
           <div className="flex items-baseline justify-center gap-2">
             <span className="text-2xl text-muted-foreground">R$</span>
             <input
-              autoFocus
+              ref={focusAmount}
               inputMode="decimal"
+              aria-label="Valor"
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ""))}
               placeholder="0,00"
