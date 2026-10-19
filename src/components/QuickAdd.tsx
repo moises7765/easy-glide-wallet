@@ -24,12 +24,15 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [note, setNote] = useState("");
   const [more, setMore] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptRef | null>(null);
-  // Foca o valor ao abrir sem deixar o navegador rolar a página: o `autoFocus`
-  // disparava com a gaveta ainda fora da tela (animação de entrada) e o iOS
-  // deslocava a página para "mostrar" o campo, deixando espaço vazio.
-  const focusAmount = useCallback((node: HTMLInputElement | null) => {
-    node?.focus({ preventScroll: true });
-  }, []);
+  // O valor só recebe o foco depois que a gaveta termina de entrar (já visível,
+  // acima do teclado). Focar durante a animação fazia o iOS rolar a página e a
+  // gaveta abria deslocada. O teclado já abre no toque do + (primeKeyboard).
+  const amountRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    return focusWhenDrawerSettles(() => amountRef.current);
+  }, [open]);
+
 
 
 
