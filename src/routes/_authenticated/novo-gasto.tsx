@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { PageHeader, Panel } from "@/components/finance-ui";
 import { ReceiptField } from "@/components/ReceiptField";
@@ -32,6 +32,15 @@ function NovoGasto() {
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<ReceiptRef | null>(null);
+
+  // Abre sempre no topo e foca o valor sem que o navegador role a página
+  // (o `autoFocus` deslocava a tela no iPhone ao abrir o teclado).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  const focusAmount = useCallback((node: HTMLInputElement | null) => {
+    node?.focus({ preventScroll: true });
+  }, []);
 
   const { data: categories = [] } = useRows("categories");
   const createTx = useCreate("transactions", "Gasto registrado");
@@ -76,7 +85,7 @@ function NovoGasto() {
               <div className="flex items-baseline justify-center gap-2">
                 <span className="text-2xl text-muted-foreground">R$</span>
                 <input
-                  autoFocus
+                  ref={focusAmount}
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ""))}

@@ -41,7 +41,7 @@ function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-md pb-32">
+    <div className="mx-auto min-h-dvh w-full max-w-md pb-32">
       <Outlet />
 
       <Button
