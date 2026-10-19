@@ -6,6 +6,7 @@ import { QuickAdd } from "@/components/QuickAdd";
 import { FluxoAiButton, FluxoAiDrawer } from "@/components/fluxo-ai/FluxoAi";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { primeKeyboard } from "@/lib/drawer-focus";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -47,7 +48,11 @@ function AppLayout() {
       <Button
         type="button"
         size="icon"
-        onClick={() => setQuickOpen(true)}
+        onClick={() => {
+          // Abre o teclado numérico ainda no toque, sem rolar a página (ver drawer-focus).
+          primeKeyboard("decimal");
+          setQuickOpen(true);
+        }}
         aria-label="Novo lançamento"
         className="fixed bottom-24 left-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_10px_30px_-8px_rgba(0,0,0,0.8)] transition-transform active:scale-95"
       >

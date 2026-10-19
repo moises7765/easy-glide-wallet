@@ -16,6 +16,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } f
 import { supabase } from "@/integrations/supabase/client";
 import { executeFluxoAiAction } from "@/lib/fluxo-ai.functions";
 import { completeLaunch, isFinancialQuestion, launchDoneMessage, localFinancialAnswer, parseLaunchCommand, type LaunchCommand, parseActionProposal, proposalSummary, type FluxoAiContext } from "@/lib/fluxo-ai";
+import { focusWhenDrawerSettles } from "@/lib/drawer-focus";
 import { useRows } from "@/lib/queries";
 
 type SpeechRecognitionEventLike = Event & { results: { [index: number]: { [index: number]: { transcript: string } } }; resultIndex: number };
@@ -108,10 +109,9 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   const focusInput = useCallback(() => inputRef.current?.focus({ preventScroll: true }), []);
   useEffect(() => {
     if (!open) return;
-    // 520 ms ≈ duração da animação de abertura da gaveta.
-    const timer = window.setTimeout(focusInput, 520);
-    return () => window.clearTimeout(timer);
-  }, [focusInput, open]);
+    // Foca só depois que a gaveta termina de entrar (mesma regra do botão +).
+    return focusWhenDrawerSettles(() => inputRef.current);
+  }, [open]);
   useEffect(() => {
     if (!open || status !== "ready") return;
     if (window.matchMedia?.("(pointer: fine)").matches) focusInput();
