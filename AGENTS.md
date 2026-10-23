@@ -11,3 +11,4 @@
 
 - Home "Saldo do mês" and the flow chart are cash flow (all expenses, including invoice payments); consumption metrics (category spending, savings rate) use `isConsumptionExpense` in `src/lib/savings.ts`, which excludes `invoice_payment_id` rows — card purchases already count when made, so this avoids double counting.
 - Bottom sheets use vaul with `repositionInputs` off; `DrawerContent` anchors them to `window.visualViewport` via `--drawer-keyboard`/`--drawer-viewport` (the `drawer-viewport-anchor` utility) — vaul's iOS keyboard heuristic left stale inline heights/offsets. Focus fields with `focus({ preventScroll: true })`, never `autoFocus`, inside drawers, so iOS does not scroll the page while the sheet animates in.
+- Do not add the `@streamdown/mermaid` plugin to the chat renderer: its graphlib chunk crashes Safari at load and blanks the app.
