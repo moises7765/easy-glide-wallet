@@ -1,5 +1,6 @@
 import type { Tables } from "@/integrations/supabase/types";
-import { brl, monthKey, num, parseDate, toISODate } from "@/lib/finance";
+import { brl, parseDate, toISODate } from "@/lib/finance";
+import { localAnswer } from "@/lib/fluxo-ai-local";
 
 export type FluxoAiContext = {
   transactions: Tables<"transactions">[];
@@ -291,22 +292,5 @@ export function proposalSummary(proposal: ActionProposal) {
 }
 
 export function localFinancialAnswer(question: string, context: FluxoAiContext) {
-  const value = normalize(question);
-  const current = monthKey(new Date());
-  const transactions = context.transactions.filter((transaction) => !transaction.invoice_payment_id);
-  const month = transactions.filter((transaction) => monthKey(transaction.date) === current);
-  const income = month.filter((transaction) => transaction.type === "income").reduce((sum, transaction) => sum + num(transaction.amount), 0);
-  const expense = month.filter((transaction) => transaction.type === "expense").reduce((sum, transaction) => sum + num(transaction.amount), 0);
-  const balance = income - expense;
-  if (/maior gasto/.test(value)) {
-    const biggest = month.filter((transaction) => transaction.type === "expense").sort((a, b) => num(b.amount) - num(a.amount))[0];
-    return biggest ? `Seu maior gasto neste mês foi **${biggest.description || "Sem descrição"}**, de **${brl(num(biggest.amount))}**.` : "Ainda não há despesas neste mês.";
-  }
-  if (/meta/.test(value)) {
-    if (context.goals.length === 0) return "Você ainda não tem metas cadastradas. Posso preparar uma nova meta para você.";
-    const pending = context.goals.map((goal) => ({ ...goal, missing: Math.max(0, num(goal.target_amount) - num(goal.current_amount)) })).sort((a, b) => a.missing - b.missing)[0];
-    if (!pending) return "Você ainda não tem metas cadastradas. Posso preparar uma nova meta para você.";
-    return `A meta mais próxima é **${pending.name}**. Faltam **${brl(pending.missing)}** para concluí-la.`;
-  }
-  return `Neste mês, entraram **${brl(income)}**, saíram **${brl(expense)}** e seu saldo é **${brl(balance)}**. ${balance >= 0 ? "Você está fechando o mês no positivo." : "Vale revisar as maiores despesas antes de assumir novos compromissos."}`;
+  return localAnswer(question, context).text;
 }
