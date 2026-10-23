@@ -15,8 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { supabase } from "@/integrations/supabase/client";
 import { executeFluxoAiAction } from "@/lib/fluxo-ai.functions";
-import { completeLaunch, isFinancialQuestion, launchDoneMessage, localFinancialAnswer, parseLaunchCommand, type LaunchCommand, parseActionProposal, proposalSummary, type FluxoAiContext } from "@/lib/fluxo-ai";
+import { completeLaunch, isFinancialQuestion, launchDoneMessage, parseLaunchCommand, type LaunchCommand, parseActionProposal, proposalSummary, type FluxoAiContext } from "@/lib/fluxo-ai";
 import { focusWhenDrawerSettles } from "@/lib/drawer-focus";
+import { CAPABILITIES_ANSWER, classifyChatError, fallbackAnswer, isCapabilitiesQuestion, type ChatErrorKind } from "@/lib/fluxo-ai-local";
 import { useRows } from "@/lib/queries";
 
 type SpeechRecognitionEventLike = Event & { results: { [index: number]: { [index: number]: { transcript: string } } }; resultIndex: number };
@@ -37,14 +38,6 @@ const SUGGESTIONS = ["💰 Minha situação", "🎯 Minhas metas", "💳 Cartõe
 
 function textOf(message: UIMessage) {
   return message.parts.filter((part) => part.type === "text").map((part) => part.text).join("");
-}
-
-function friendlyError(error: Error) {
-  const message = error.message.toLowerCase();
-  if (message.includes("402")) return "Os créditos do Fluxo IA acabaram. O responsável pelo app precisa adicionar créditos.";
-  if (message.includes("429")) return "O Fluxo IA está recebendo muitas solicitações. Tente novamente em instantes.";
-  if (message.includes("401")) return "Sua sessão expirou. Entre novamente para continuar.";
-  return error.message || "Não foi possível falar com o Fluxo IA agora.";
 }
 
 export function FluxoAiButton({ onClick }: { onClick: () => void }) {
@@ -96,11 +89,27 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
       return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
     },
   }), []);
-  const { messages, sendMessage, status, error, stop, setMessages } = useChat({
-    transport,
-    onError: (chatError) => toast.error(friendlyError(chatError)),
-  });
+  const { messages, sendMessage, status, error, stop, setMessages, clearError } = useChat({ transport });
   const busy = status === "submitted" || status === "streaming";
+  // Última pergunta enviada à IA e motivo de pausa (sem créditos/sem configuração/negado):
+  // depois de uma falha dessas, as perguntas seguintes são respondidas localmente,
+  // sem novas chamadas à IA, até o app ser recarregado.
+  const lastQuestionRef = useRef("");
+  const pausedRef = useRef<ChatErrorKind | null>(null);
+
+  // Falha na IA: em vez de "An error occurred.", responde com cálculos locais e um aviso curto.
+  useEffect(() => {
+    if (!error) return;
+    const { kind, pause } = classifyChatError(error.message);
+    if (pause) pausedRef.current = kind;
+    const text = fallbackAnswer(lastQuestionRef.current, context, kind);
+    setMessages((current) => {
+      const last = current.at(-1);
+      const trimmed = last?.role === "assistant" && !textOf(last) ? current.slice(0, -1) : current;
+      return [...trimmed, { id: crypto.randomUUID(), role: "assistant", parts: [{ type: "text", text }] }];
+    });
+    clearError();
+  }, [clearError, context, error, setMessages]);
 
   // Foco sem rolar a página. Antes o foco ocorria 180 ms após abrir (gaveta ainda
   // animando) e a cada mudança de status, o que no iPhone reabria o teclado e
@@ -191,11 +200,22 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
       }
       return;
     }
+    // Perguntas informativas nunca gravam nada daqui em diante.
+    if (isCapabilitiesQuestion(text)) {
+      addLocalMessage("user", text);
+      addLocalMessage("assistant", CAPABILITIES_ANSWER);
+      return;
+    }
+    if (pausedRef.current) {
+      addLocalMessage("user", text);
+      addLocalMessage("assistant", fallbackAnswer(text, context, pausedRef.current));
+      return;
+    }
+    lastQuestionRef.current = text;
     try {
       await sendMessage({ text });
     } catch {
-      addLocalMessage("user", text);
-      addLocalMessage("assistant", localFinancialAnswer(text, context));
+      // A falha chega em `error` e vira resposta local (efeito acima).
     }
   }, [addLocalMessage, busy, cards, context, executeAction, pendingLaunch, queryClient, sendMessage]);
 
@@ -269,7 +289,6 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
                 </div>
               ) : messages.map((message) => <ChatMessage key={message.id} message={message} onSpeak={speak} speaking={speaking} />)}
               {status === "submitted" ? <Shimmer className="text-sm">Analisando seus dados...</Shimmer> : null}
-              {error ? <p className="text-sm text-destructive">{friendlyError(error)}</p> : null}
             </ConversationContent>
             <ConversationScrollButton />
           </Conversation>
