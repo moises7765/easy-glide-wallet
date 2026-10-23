@@ -1,7 +1,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { APICallError, convertToModelMessages, streamText, type UIMessage } from "ai";
 
 import type { Database } from "@/integrations/supabase/types";
 import { createLovableAiRunFetch, withLovableRunId } from "@/lib/ai-gateway.server";
@@ -9,8 +9,17 @@ import { buildFluxoAiContext, FLUXO_AI_INSTRUCTIONS } from "@/lib/fluxo-ai.serve
 
 type ChatBody = { messages?: unknown };
 
+// The client reads `status` to decide on the local fallback (src/lib/fluxo-ai-local.ts).
 function errorResponse(message: string, status: number) {
-  return Response.json({ error: message }, { status });
+  return Response.json({ error: message, status }, { status });
+}
+
+/** Unwraps retry wrappers and returns the gateway status, never raw provider bodies. */
+function describeAiError(error: unknown) {
+  const inner = (error as { lastError?: unknown } | null)?.lastError ?? error;
+  const status = APICallError.isInstance(inner) ? inner.statusCode ?? 500 : 500;
+  console.error("[fluxo-ai] AI call failed", status, inner instanceof Error ? inner.message : inner);
+  return JSON.stringify({ status });
 }
 
 export const Route = createFileRoute("/api/fluxo-ai")({
@@ -22,7 +31,7 @@ export const Route = createFileRoute("/api/fluxo-ai")({
         const url = process.env["SUPABASE_URL"];
         const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
         const aiKey = process.env["LOVABLE_API_KEY"];
-        if (!url || !key) return errorResponse("A conexão com seus dados não está configurada.", 500);
+        if (!url || !key) return errorResponse("A conexão com seus dados não está configurada.", 503);
         if (!aiKey) return errorResponse("O Fluxo IA ainda não está configurado neste ambiente.", 503);
 
         const token = authorization.slice(7);
@@ -37,7 +46,13 @@ export const Route = createFileRoute("/api/fluxo-ai")({
 
         const body = (await request.json()) as ChatBody;
         if (!Array.isArray(body.messages)) return errorResponse("Envie uma mensagem para continuar.", 400);
-        const financialContext = await buildFluxoAiContext(supabase, userId);
+        let financialContext: string;
+        try {
+          financialContext = await buildFluxoAiContext(supabase, userId);
+        } catch (error) {
+          console.error("[fluxo-ai] could not load financial context", error);
+          return errorResponse("Não foi possível carregar seus dados agora.", 500);
+        }
         const initialRunId = request.headers.get("X-Lovable-AIG-Run-ID");
         const run = createLovableAiRunFetch(initialRunId);
         const lovable = createOpenAI({
@@ -66,6 +81,7 @@ export const Route = createFileRoute("/api/fluxo-ai")({
           const response = result.toUIMessageStreamResponse({
             originalMessages: body.messages as UIMessage[],
             sendReasoning: true,
+            onError: describeAiError,
           });
           return withLovableRunId(response, run);
         } catch (error) {
