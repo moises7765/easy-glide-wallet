@@ -79,7 +79,7 @@ describe("lançamentos diretos continuam", () => {
     expect(parseLaunchCommand("Gastei 35 reais no almoço no Pix", ctx)?.status).toBe("ready");
   });
   it("resposta à pergunta 'entrada ou saída?' completa o lançamento", () => {
-    const pending = parseLaunchCommand("Novo lançamento, R$ 10 com arroz no Pix", ctx);
+    const pending = parseLaunchCommand("Novo lançamento de 10 reais", ctx);
     expect(pending?.status).toBe("needs_type");
     const done = pending ? completeLaunch(pending, "saída", ctx) : null;
     expect(done?.status).toBe("ready");
