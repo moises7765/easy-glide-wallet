@@ -46,7 +46,7 @@ const NUMBER_WORDS: Record<string, number> = {
 };
 
 /** Converts spoken amounts like "vinte e cinco reais" into "25 reais". */
-function wordsToDigits(text: string) {
+export function wordsToDigits(text: string) {
   return text.replace(/((?:[a-zçãéêô]+)(?:\s+(?:e\s+)?[a-zçãéêô]+)*)\s+(reais|real|conto|contos)\b/gi, (full, words: string, unit: string) => {
     const tokens = normalize(words).split(/\s+/);
     let total = 0;
@@ -68,7 +68,7 @@ function wordsToDigits(text: string) {
   });
 }
 
-function parseMoney(text: string) {
+export function parseMoney(text: string) {
   const match = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})|\d+(?:\.\d{1,2})?)(?!\s*(?:x|vezes|parcelas?)\b)/i);
   if (!match) return null;
   const raw = match[1];

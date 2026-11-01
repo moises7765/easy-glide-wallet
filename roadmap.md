@@ -7,3 +7,8 @@
 - [x] Full Portuguese month in chat summaries ("outubro de 2026").
 - [x] Local fallback in Portuguese when the AI is unavailable; questions never create entries.
 - [x] Tests, type check, browser check, publish.
+# Fluxo IA planning (purchase check + savings/goals)
+- [ ] Local module: "Posso comprar?" (Cabe / Cabe com cuidado / Melhor esperar), asks only missing price/payment, card limit ≠ money, no entry created.
+- [ ] Local module: savings opportunities (non-essential only, monthly/annual estimates), goal scenarios, "e se eu economizar R$ X" simulation.
+- [ ] Chat: new chips, routing before launch parsing, "comprei" after a simulation registers it.
+- [ ] Unit tests, type check, build, mocked chat check, publish.
