@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { isFinancialQuestion, parseActionProposal, parseLaunchCommand, type FluxoAiContext } from "./fluxo-ai";
+import { completeLaunch } from "./fluxo-ai";
 import { CAPABILITIES_ANSWER, classifyChatError, detectLocalIntent, fallbackAnswer, localAnswer } from "./fluxo-ai-local";
+
+// Intl formats BRL as "R$\u00a0399,90" (non-breaking space). Compare on plain spaces.
+const plain = (text: string) => text.replace(/\u00a0/g, " ");
 
 // 20:00 in Brasília on Oct 23, 2026.
 const NOW = new Date("2026-10-23T23:00:00Z");
@@ -38,7 +42,8 @@ describe("perguntas informativas", () => {
   });
 
   it("situação financeira usa os números reais do mês", () => {
-    const { intent, text } = localAnswer("Como está minha situação financeira?", ctx, NOW);
+    const { intent, text: raw } = localAnswer("Como está minha situação financeira?", ctx, NOW);
+    const text = plain(raw);
     expect(intent).toBe("situation");
     expect(text).toContain("R$ 2.206,00"); // entrou
     expect(text).toContain("R$ 2.498,10"); // saiu em caixa
@@ -48,7 +53,7 @@ describe("perguntas informativas", () => {
   });
 
   it("gastos por categoria excluem pagamentos de fatura", () => {
-    const { text } = localAnswer("Onde estou gastando?", ctx, NOW);
+    const text = plain(localAnswer("Onde estou gastando?", ctx, NOW).text);
     expect(text).toContain("R$ 399,90");
     expect(text).toContain("Alimentação: R$ 300,00");
     expect(text).not.toContain("1.980,52");
@@ -57,7 +62,27 @@ describe("perguntas informativas", () => {
   it("pergunta complexa não reconhecida devolve o resumo do mês", () => {
     const r = localAnswer("Se eu trocar de carro em março, consigo manter a reserva?", ctx, NOW);
     expect(r.matched).toBe(false);
-    expect(r.text).toContain("R$ 2.206,00");
+    expect(plain(r.text)).toContain("R$ 2.206,00");
+  });
+});
+
+describe("mês por extenso", () => {
+  it("resumo usa 'outubro de 2026', não 'out de 26'", () => {
+    const text = localAnswer("Como está minha situação financeira?", ctx, NOW).text;
+    expect(text).toContain("Resumo de outubro de 2026");
+    expect(text).not.toContain("out de 26");
+  });
+});
+
+describe("lançamentos diretos continuam", () => {
+  it("ordem completa fica pronta para salvar sem confirmação", () => {
+    expect(parseLaunchCommand("Gastei 35 reais no almoço no Pix", ctx)?.status).toBe("ready");
+  });
+  it("resposta à pergunta 'entrada ou saída?' completa o lançamento", () => {
+    const pending = parseLaunchCommand("Novo lançamento de 10 reais", ctx);
+    expect(pending?.status).toBe("needs_type");
+    const done = pending ? completeLaunch(pending, "saída", ctx) : null;
+    expect(done?.status).toBe("ready");
   });
 });
 
@@ -76,7 +101,7 @@ describe("erro da IA → resposta local", () => {
     expect(classifyChatError("Failed to fetch")).toEqual({ kind: "unavailable", pause: false });
   });
   it("fallback explica a limitação em português e responde com os dados", () => {
-    const text = fallbackAnswer("Como está minha situação financeira?", ctx, "credits", NOW);
+    const text = plain(fallbackAnswer("Como está minha situação financeira?", ctx, "credits", NOW));
     expect(text).toContain("sem créditos de IA");
     expect(text).toContain("R$ 2.206,00");
     expect(text).not.toContain("An error occurred");

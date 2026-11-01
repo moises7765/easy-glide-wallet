@@ -76,6 +76,12 @@ export function monthLabel(key: string) {
     .replace(".", "");
 }
 
+/** Full Portuguese month for sentences: "2026-10" → "outubro de 2026". */
+export function monthLong(key: string) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
 export function monthInitialUpper(key: string) {
   const [y, m] = key.split("-").map(Number);
   return new Date(y ?? 1970, (m ?? 1) - 1, 1)
