@@ -1,4 +1,4 @@
-import { brl, cardInvoice, invoiceKeyForDate, monthLabel, num, remainingOf } from "@/lib/finance";
+import { brl, cardInvoice, invoiceKeyForDate, monthLong, num, remainingOf } from "@/lib/finance";
 import { isConsumptionExpense, savingsForMonth, savingsMonthKey, savingsPercent } from "@/lib/savings";
 import type { FluxoAiContext } from "@/lib/fluxo-ai";
 
@@ -97,7 +97,7 @@ function categoriesOf(context: FluxoAiContext, key: string) {
   return [...map.values()].sort((a, b) => b.value - a.value);
 }
 
-const monthName = (key: string) => monthLabel(key).toLowerCase();
+const monthName = (key: string) => monthLong(key);
 
 function situation(context: FluxoAiContext, key: string) {
   const m = monthNumbers(context, key);
