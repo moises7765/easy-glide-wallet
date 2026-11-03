@@ -74,9 +74,11 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   const { data: purchases = [] } = useRows("installment_purchases");
   const { data: goals = [] } = useRows("goals");
   const { data: assets = [] } = useRows("assets");
-  const context: FluxoAiContext = useMemo(() => ({ transactions, categories, cards, purchases, goals, assets }), [transactions, categories, cards, purchases, goals, assets]);
+  const { data: invoicePayments = [] } = useRows("card_invoice_payments");
+  const context: FluxoAiContext = useMemo(() => ({ transactions, categories, cards, purchases, goals, assets, invoicePayments }), [transactions, categories, cards, purchases, goals, assets, invoicePayments]);
   const [draft, setDraft] = useState("");
   const [pendingLaunch, setPendingLaunch] = useState<LaunchCommand | null>(null);
+  const [planning, setPlanning] = useState<PlanningState>(EMPTY_PLANNING);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -179,6 +181,24 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
         return;
       }
     }
+    // Planejamento (simular compra, economizar, metas): calculado no app, nunca grava nada.
+    // Só "comprei" depois de uma simulação vira lançamento, pelo fluxo normal de lançamentos.
+    const planned = planningReply(text, planning, context);
+    if (planned) {
+      setPlanning(planned.state);
+      if (planned.launchText) {
+        addLocalMessage("user", text);
+        const fromSimulation = parseLaunchCommand(planned.launchText, context);
+        if (fromSimulation) await handleLaunch(fromSimulation);
+        else addLocalMessage("assistant", "Não consegui montar o lançamento. Diga, por exemplo: “Comprei tênis 450 no Pix”.");
+        return;
+      }
+      if (planned.reply) {
+        addLocalMessage("user", text);
+        addLocalMessage("assistant", planned.reply);
+        return;
+      }
+    }
     const launch = parseLaunchCommand(text, context);
     if (launch) {
       addLocalMessage("user", text);
@@ -218,7 +238,7 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
     } catch {
       // A falha chega em `error` e vira resposta local (efeito acima).
     }
-  }, [addLocalMessage, busy, cards, context, executeAction, pendingLaunch, queryClient, sendMessage]);
+  }, [addLocalMessage, busy, cards, context, executeAction, pendingLaunch, planning, queryClient, sendMessage]);
 
   function toggleListening() {
     if (listening) {
