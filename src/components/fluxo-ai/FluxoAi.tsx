@@ -18,7 +18,7 @@ import { executeFluxoAiAction } from "@/lib/fluxo-ai.functions";
 import { completeLaunch, isFinancialQuestion, launchDoneMessage, parseLaunchCommand, type LaunchCommand, parseActionProposal, proposalSummary, type FluxoAiContext } from "@/lib/fluxo-ai";
 import { focusWhenDrawerSettles } from "@/lib/drawer-focus";
 import { CAPABILITIES_ANSWER, classifyChatError, fallbackAnswer, isCapabilitiesQuestion, type ChatErrorKind } from "@/lib/fluxo-ai-local";
-import { planningReply, type PlanningState } from "@/lib/fluxo-ai-router";
+import { EMPTY_PLANNING, planningReply, type PlanningState } from "@/lib/fluxo-ai-router";
 import { useRows } from "@/lib/queries";
 
 type SpeechRecognitionEventLike = Event & { results: { [index: number]: { [index: number]: { transcript: string } } }; resultIndex: number };
