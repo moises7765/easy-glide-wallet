@@ -9,6 +9,8 @@ export type FluxoAiContext = {
   purchases: Tables<"installment_purchases">[];
   goals: Tables<"goals">[];
   assets: Tables<"assets">[];
+  /** Paid invoices; used by purchase simulations to skip invoices already paid. */
+  invoicePayments?: Tables<"card_invoice_payments">[];
 };
 
 export type TransactionProposal = {
