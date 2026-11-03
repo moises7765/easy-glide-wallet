@@ -18,6 +18,7 @@ import { executeFluxoAiAction } from "@/lib/fluxo-ai.functions";
 import { completeLaunch, isFinancialQuestion, launchDoneMessage, parseLaunchCommand, type LaunchCommand, parseActionProposal, proposalSummary, type FluxoAiContext } from "@/lib/fluxo-ai";
 import { focusWhenDrawerSettles } from "@/lib/drawer-focus";
 import { CAPABILITIES_ANSWER, classifyChatError, fallbackAnswer, isCapabilitiesQuestion, type ChatErrorKind } from "@/lib/fluxo-ai-local";
+import { planningReply, type PlanningState } from "@/lib/fluxo-ai-router";
 import { useRows } from "@/lib/queries";
 
 type SpeechRecognitionEventLike = Event & { results: { [index: number]: { [index: number]: { transcript: string } } }; resultIndex: number };
@@ -34,7 +35,7 @@ type SpeechRecognitionLike = {
 };
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
-const SUGGESTIONS = ["💰 Minha situação", "🎯 Minhas metas", "💳 Cartões", "📊 Meus gastos", "💡 O que devo fazer?"];
+const SUGGESTIONS = ["💰 Minha situação", "🛍️ Posso comprar isso?", "✂️ Como economizar mais?", "🚀 Acelerar minhas metas", "💳 Cartões", "📊 Meus gastos"];
 
 function textOf(message: UIMessage) {
   return message.parts.filter((part) => part.type === "text").map((part) => part.text).join("");
