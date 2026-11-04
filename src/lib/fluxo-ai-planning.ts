@@ -59,7 +59,8 @@ export function recurringOf(context: FluxoAiContext, today: Date): Recurring[] {
   const first = new Date(today.getFullYear(), today.getMonth(), 1);
   const current = monthKey(today);
   const previous = [1, 2, 3].map((i) => monthKey(addMonths(first, -i)));
-  const groups = new Map<string, { description: string; type: string; months: Map<string, number>; days: number[]; onCard: boolean; categoryId: string | null }>();
+  type Group = { description: string; type: string; months: Map<string, number>; days: number[]; onCard: boolean; categoryId: string | null };
+  const groups = new Map<string, Group>();
   context.transactions.forEach((t) => {
     if (t.invoice_payment_id) return;
     const key = t.date.slice(0, 7);
@@ -67,7 +68,7 @@ export function recurringOf(context: FluxoAiContext, today: Date): Recurring[] {
     const desc = normalize(t.description ?? "").replace(/\d+/g, " ").replace(/\s+/g, " ").trim();
     if (GENERIC.has(desc)) return;
     const id = `${t.type}|${desc}`;
-    const group = groups.get(id) ?? { description: t.description?.trim() || desc, type: t.type, months: new Map(), days: [], onCard: true, categoryId: t.category_id };
+    const group: Group = groups.get(id) ?? { description: t.description?.trim() || desc, type: t.type, months: new Map<string, number>(), days: [], onCard: true, categoryId: t.category_id };
     group.months.set(key, (group.months.get(key) ?? 0) + num(t.amount));
     if (key !== current) group.days.push(Number(t.date.slice(8, 10)));
     if (!t.card_id) group.onCard = false;
