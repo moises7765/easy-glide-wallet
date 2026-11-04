@@ -1,4 +1,5 @@
 import { addMonths, brl, buildCardInvoices, cardUsed, installmentLines, invoiceDueDate, invoiceKeyForDate, monthKey, monthLong, num, parseDate } from "@/lib/finance";
+import { detectRecurrences, fixedIncreases, fixedSummary, frequencyLabel, sameName, unpaidFixedDues, STATUS_LABEL } from "@/lib/fixed-expenses";
 import { brasiliaToday, parseMoney, wordsToDigits, type FluxoAiContext } from "@/lib/fluxo-ai";
 import { isConsumptionExpense } from "@/lib/savings";
 
