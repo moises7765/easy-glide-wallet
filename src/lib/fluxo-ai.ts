@@ -11,6 +11,9 @@ export type FluxoAiContext = {
   assets: Tables<"assets">[];
   /** Paid invoices; used by purchase simulations to skip invoices already paid. */
   invoicePayments?: Tables<"card_invoice_payments">[];
+  /** Registered fixed expenses (commitments, not transactions) and their paid periods. */
+  fixedExpenses?: Tables<"fixed_expenses">[];
+  fixedPayments?: Tables<"fixed_expense_payments">[];
 };
 
 export type TransactionProposal = {

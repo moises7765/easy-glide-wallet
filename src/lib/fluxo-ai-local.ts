@@ -49,6 +49,7 @@ export const CAPABILITIES_ANSWER = [
   "- **Responder perguntas**: situação do mês, gastos por categoria, maior gasto, receitas, cartões e faturas, metas e patrimônio.",
   "- **Dar orientações**: onde dá para economizar e quanto você está poupando.",
   "- **Simular compras**: *“Posso comprar um tênis de R$ 450 hoje?”* — digo se cabe, sem registrar nada.",
+  "- **Gastos fixos**: total comprometido por mês, próximos vencimentos, contas que aumentaram e *“Quanto posso gastar?”* descontando o que ainda vence.",
   "- **Planejar metas**: prazos e cenários, e *“E se eu economizar mais R$ 200 por mês?”*.",
   "- **Registrar lançamentos** por texto ou voz, direto: *“Gastei 35 reais no almoço no Pix”*, *“Recebi 2.000 de salário”*, *“Comprei 600 em 3x no Nubank”*.",
   "- **Criar metas**: *“Criar meta viagem de 5.000”*.",

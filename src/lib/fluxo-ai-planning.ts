@@ -1,4 +1,5 @@
 import { addMonths, brl, buildCardInvoices, cardUsed, installmentLines, invoiceDueDate, invoiceKeyForDate, monthKey, monthLong, num, parseDate } from "@/lib/finance";
+import { detectRecurrences, fixedIncreases, fixedSummary, sameName, unpaidFixedDues, STATUS_LABEL } from "@/lib/fixed-expenses";
 import { brasiliaToday, parseMoney, wordsToDigits, type FluxoAiContext } from "@/lib/fluxo-ai";
 import { isConsumptionExpense } from "@/lib/savings";
 
@@ -59,7 +60,8 @@ export function recurringOf(context: FluxoAiContext, today: Date): Recurring[] {
   const first = new Date(today.getFullYear(), today.getMonth(), 1);
   const current = monthKey(today);
   const previous = [1, 2, 3].map((i) => monthKey(addMonths(first, -i)));
-  const groups = new Map<string, { description: string; type: string; months: Map<string, number>; days: number[]; onCard: boolean; categoryId: string | null }>();
+  type Group = { description: string; type: string; months: Map<string, number>; days: number[]; onCard: boolean; categoryId: string | null };
+  const groups = new Map<string, Group>();
   context.transactions.forEach((t) => {
     if (t.invoice_payment_id) return;
     const key = t.date.slice(0, 7);
@@ -67,7 +69,7 @@ export function recurringOf(context: FluxoAiContext, today: Date): Recurring[] {
     const desc = normalize(t.description ?? "").replace(/\d+/g, " ").replace(/\s+/g, " ").trim();
     if (GENERIC.has(desc)) return;
     const id = `${t.type}|${desc}`;
-    const group = groups.get(id) ?? { description: t.description?.trim() || desc, type: t.type, months: new Map(), days: [], onCard: true, categoryId: t.category_id };
+    const group: Group = groups.get(id) ?? { description: t.description?.trim() || desc, type: t.type, months: new Map<string, number>(), days: [], onCard: true, categoryId: t.category_id };
     group.months.set(key, (group.months.get(key) ?? 0) + num(t.amount));
     if (key !== current) group.days.push(Number(t.date.slice(8, 10)));
     if (!t.card_id) group.onCard = false;
@@ -101,7 +103,7 @@ function nextOccurrence(r: Recurring, today: Date) {
  * Caixa: dinheiro disponível e compromissos até uma data
  * ------------------------------------------------------------------------ */
 
-type Item = { label: string; amount: number; date: Date };
+type Item = { label: string; amount: number; date: Date; kind?: "fixed" };
 
 export type CashPicture = {
   cash: number;
@@ -144,9 +146,18 @@ export function cashPicture(context: FluxoAiContext, today: Date, until: Date): 
     .filter((line) => !line.paid && line.dueDate >= today && line.dueDate <= until)
     .forEach((line) => obligations.push({ label: `Parcela ${line.purchase.description}`, amount: line.amount, date: line.dueDate }));
 
+  // Gastos fixos cadastrados: só vencimentos ainda não cobertos (sem pagamento marcado
+  // e sem lançamento correspondente), para nunca subtrair duas vezes.
+  const fixed = context.fixedExpenses ?? [];
+  unpaidFixedDues(fixed, context.fixedPayments ?? [], context.transactions, today, until).forEach((due) =>
+    obligations.push({ label: `${due.fixed.name}${due.status === "vencida" ? " (vencida)" : ""}${due.fixed.is_estimate ? " (estimado)" : ""}`, amount: due.amount, date: due.date, kind: "fixed" }),
+  );
+
   const expectedIncome: Item[] = [];
   recurringOf(context, today).forEach((r) => {
     if (r.onCard) return; // compras recorrentes no cartão já estão na fatura
+    // Já cadastrada como gasto fixo: entra pela lista acima, não pela recorrência detectada.
+    if (r.type === "expense" && fixed.some((f) => sameName(f.name, r.description))) return;
     const date = nextOccurrence(r, today);
     if (date > until) return;
     const item = { label: r.description, amount: r.amount, date };
@@ -559,3 +570,78 @@ export function goalsStrategyAnswer(context: FluxoAiContext, now: Date = new Dat
   lines.push("", `**Ação prioritária:** ${action}`, "", "_Estimativas sem rendimentos. Nenhuma meta foi alterada; para mudar, peça explicitamente._");
   return lines.join("\n");
 }
+
+/* --------------------------------------------------------------------------
+ * 3) Gastos fixos e dinheiro livre
+ * ------------------------------------------------------------------------ */
+
+const FIXED_QUESTION = /gastos? fixos?|contas? fixas?|despesas? fixas?|compromissos? (fixos?|mensais|do mes)|(total|quanto (tenho|esta|estou)) comprometido|proximos? vencimentos?|(o que|quais contas|contas) (vence|vencem|a vencer|a pagar|para pagar|pra pagar)|contas? (a|para|pra) pagar|vencimentos? (do|deste|desse|neste) mes|(fixos?|contas?) .*aument|aument.*(fixos?|contas?)/;
+const FREE_MONEY_QUESTION = /quanto (eu )?(posso|consigo|da pra|da para) gastar|dinheiro livre|quanto (me )?sobra (livre|pra gastar|para gastar|ate o fim do mes)|quanto (tenho|fica) (livre|disponivel)|livre (pra|para) gastar/;
+
+export function isFixedQuestion(text: string) {
+  return FIXED_QUESTION.test(normalize(text));
+}
+
+export function isFreeMoneyQuestion(text: string) {
+  return FREE_MONEY_QUESTION.test(normalize(text));
+}
+
+const STATUS_ICON: Record<string, string> = { vencida: "🔴", em_breve: "🟡", a_vencer: "⚪", paga: "✅", registrada: "✅" };
+
+/** Resumo dos gastos fixos: total comprometido, vencimentos, aumentos e efeito no dinheiro livre. */
+export function fixedExpensesAnswer(context: FluxoAiContext, now: Date = new Date()) {
+  const today = planningToday(now);
+  const fixed = context.fixedExpenses ?? [];
+  const payments = context.fixedPayments ?? [];
+  if (fixed.length === 0) {
+    const suggestions = detectRecurrences(context.transactions, [], new Set(), today);
+    const lines = ["Você ainda não cadastrou gastos fixos. Abra a aba **Gastos fixos** para adicionar contas como aluguel, luz ou assinaturas."];
+    if (suggestions.length) lines.push("", `Encontrei ${suggestions.length} ${suggestions.length === 1 ? "possível recorrência" : "possíveis recorrências"} nos seus lançamentos (${suggestions.slice(0, 3).map((s) => s.name).join(", ")}). Elas aparecem lá como sugestão — só entram se você adicionar.`);
+    return lines.join("\n");
+  }
+  const s = fixedSummary(fixed, payments, context.transactions, today);
+  const lines = ["**Gastos fixos**", ""];
+  lines.push(`- **Comprometido por mês:** ${brl(s.monthlyTotal)} em ${s.activeCount} ${s.activeCount === 1 ? "gasto ativo" : "gastos ativos"}${s.pausedCount ? ` (${s.pausedCount} pausado${s.pausedCount > 1 ? "s" : ""}, fora da conta)` : ""}${s.estimateCount ? `; ${s.estimateCount} com valor estimado` : ""}.`);
+  lines.push(`- **Neste mês:** ${brl(s.monthDue)} previstos · ${brl(s.monthSettled)} já pagos ou lançados · **faltam ${brl(s.monthRemaining)}**.`);
+  const next = [...s.overdue, ...s.upcoming].slice(0, 6);
+  if (next.length) {
+    lines.push("", "**Próximos vencimentos**");
+    next.forEach((i) => lines.push(`${STATUS_ICON[i.status] ?? "•"} ${shortDate(i.date)} · ${i.fixed.name} · ${i.fixed.is_estimate ? "~" : ""}${brl(i.amount)} · ${STATUS_LABEL[i.status]}`));
+  } else lines.push("", "Nenhum vencimento pendente nos próximos 35 dias.");
+  const increases = fixedIncreases(fixed, payments, context.transactions, today);
+  if (increases.length) {
+    lines.push("", "**Aumentaram**");
+    increases.forEach((x) => lines.push(`- ${x.fixed.name}: ${brl(x.previous)} → ${brl(x.last)} (+${brl(x.delta)})`));
+  }
+  const installmentsMonth = context.purchases.flatMap(installmentLines).filter((l) => !l.paid && l.monthKey === monthKey(today)).reduce((sum, l) => sum + l.amount, 0);
+  if (installmentsMonth > 0) lines.push("", `_Parcelas de compras (${brl(installmentsMonth)} neste mês) ficam à parte: estão em Parcelamentos e nas faturas, não nos gastos fixos._`);
+  const free = freeMoneyNumbers(context, now);
+  if (free) lines.push("", `**Dinheiro livre até ${shortDate(free.until)}:** ${brl(free.free)} depois de faturas, parcelas e gastos fixos ainda não pagos.`);
+  return lines.join("\n");
+}
+
+function freeMoneyNumbers(context: FluxoAiContext, now: Date) {
+  const today = planningToday(now);
+  const until = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const picture = cashPicture(context, today, until);
+  if (picture.source === "none") return null;
+  const owed = sum(picture.obligations);
+  const incoming = sum(picture.expectedIncome);
+  return { picture, owed, incoming, until, free: picture.cash + incoming - owed };
+}
+
+/** "Quanto posso gastar?": dinheiro disponível + entradas previstas − tudo que ainda vence até o fim do mês. */
+export function freeMoneyAnswer(context: FluxoAiContext, now: Date = new Date()) {
+  const r = freeMoneyNumbers(context, now);
+  if (!r) return "Ainda não consigo calcular: não há saldo de contas em **Patrimônio** nem lançamentos neste mês. Cadastre o saldo da sua conta (marcado como disponível) e pergunte de novo.";
+  const fixedOwed = r.picture.obligations.filter((o) => o.kind === "fixed").reduce((s, o) => s + o.amount, 0);
+  const lines = [`**Você pode gastar até ${brl(Math.max(0, r.free))}** até ${shortDate(r.until)}.`, ""];
+  lines.push(`- **Dinheiro disponível:** ${brl(r.picture.cash)} (${r.picture.source === "assets" ? "saldo em contas cadastrado em Patrimônio" : "sobra do mês até agora"}).`);
+  if (r.incoming > 0) lines.push(`- **Entradas previstas:** +${brl(r.incoming)} (${r.picture.expectedIncome.map((i) => i.label).join(", ")}, pela recorrência).`);
+  lines.push(`- **Ainda a pagar:** −${brl(r.owed)}${fixedOwed > 0 ? ` (inclui ${brl(fixedOwed)} de gastos fixos não pagos)` : ""}.`);
+  if (r.picture.obligations.length) lines.push(`  ${r.picture.obligations.slice(0, 5).map((o) => `${o.label} ${brl(o.amount)} (${shortDate(o.date)})`).join("; ")}${r.picture.obligations.length > 5 ? "; …" : ""}`);
+  if (r.free < 0) lines.push("", `⚠️ Faltam ${brl(-r.free)} para cobrir o que vence até o fim do mês.`);
+  lines.push("", "_Contas já pagas ou já lançadas não são descontadas de novo. Limite do cartão não conta como dinheiro._");
+  return lines.join("\n");
+}
+

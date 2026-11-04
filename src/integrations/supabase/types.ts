@@ -228,6 +228,125 @@ export type Database = {
         }
         Relationships: []
       }
+      fixed_expense_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_transaction: boolean
+          due_date: string
+          fixed_expense_id: string
+          id: string
+          paid_at: string
+          period_key: string
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_transaction?: boolean
+          due_date: string
+          fixed_expense_id: string
+          id?: string
+          paid_at?: string
+          period_key: string
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_transaction?: boolean
+          due_date?: string
+          fixed_expense_id?: string
+          id?: string
+          paid_at?: string
+          period_key?: string
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_expense_payments_fixed_expense_id_fkey"
+            columns: ["fixed_expense_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_expense_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_expenses: {
+        Row: {
+          active: boolean
+          amount: number
+          category_id: string | null
+          created_at: string
+          due_day: number
+          frequency: string
+          id: string
+          interval_months: number
+          is_estimate: boolean
+          name: string
+          note: string | null
+          payment_method: string | null
+          source_signature: string | null
+          start_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          due_day?: number
+          frequency?: string
+          id?: string
+          interval_months?: number
+          is_estimate?: boolean
+          name: string
+          note?: string | null
+          payment_method?: string | null
+          source_signature?: string | null
+          start_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          due_day?: number
+          frequency?: string
+          id?: string
+          interval_months?: number
+          is_estimate?: boolean
+          name?: string
+          note?: string | null
+          payment_method?: string | null
+          source_signature?: string | null
+          start_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           created_at: string
@@ -439,6 +558,27 @@ export type Database = {
           p256dh?: string
           updated_at?: string
           user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recurrence_dismissals: {
+        Row: {
+          created_at: string
+          id: string
+          signature: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          signature: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          signature?: string
           user_id?: string
         }
         Relationships: []
