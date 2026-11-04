@@ -146,9 +146,18 @@ export function cashPicture(context: FluxoAiContext, today: Date, until: Date): 
     .filter((line) => !line.paid && line.dueDate >= today && line.dueDate <= until)
     .forEach((line) => obligations.push({ label: `Parcela ${line.purchase.description}`, amount: line.amount, date: line.dueDate }));
 
+  // Gastos fixos cadastrados: só vencimentos ainda não cobertos (sem pagamento marcado
+  // e sem lançamento correspondente), para nunca subtrair duas vezes.
+  const fixed = context.fixedExpenses ?? [];
+  unpaidFixedDues(fixed, context.fixedPayments ?? [], context.transactions, today, until).forEach((due) =>
+    obligations.push({ label: `${due.fixed.name}${due.status === "vencida" ? " (vencida)" : ""}${due.fixed.is_estimate ? " (estimado)" : ""}`, amount: due.amount, date: due.date }),
+  );
+
   const expectedIncome: Item[] = [];
   recurringOf(context, today).forEach((r) => {
     if (r.onCard) return; // compras recorrentes no cartão já estão na fatura
+    // Já cadastrada como gasto fixo: entra pela lista acima, não pela recorrência detectada.
+    if (r.type === "expense" && fixed.some((f) => sameName(f.name, r.description))) return;
     const date = nextOccurrence(r, today);
     if (date > until) return;
     const item = { label: r.description, amount: r.amount, date };
