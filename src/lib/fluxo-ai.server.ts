@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-const TABLES = ["transactions", "categories", "cards", "installment_purchases", "goals", "assets", "emergency_fund", "budgets", "card_invoice_payments"] as const;
+const TABLES = ["transactions", "categories", "cards", "installment_purchases", "goals", "assets", "emergency_fund", "budgets", "card_invoice_payments", "fixed_expenses", "fixed_expense_payments"] as const;
 
 export async function buildFluxoAiContext(supabase: SupabaseClient<Database>, userId: string) {
   const results = await Promise.all(
@@ -21,6 +21,7 @@ export const FLUXO_AI_INSTRUCTIONS = `Você é o Fluxo IA, assistente financeiro
 Responda em português brasileiro, de forma natural, objetiva e curta por padrão.
 Use exclusivamente os dados financeiros reais fornecidos. Nunca invente valores, cartões, categorias, metas ou datas.
 Transações com invoice_payment_id são pagamentos automáticos de fatura: exclua-as de análises de gastos e compras para não contar duas vezes.
+fixed_expenses são gastos fixos cadastrados (compromissos planejados, não lançamentos); fixed_expense_payments marcam períodos já pagos. Não some um gasto fixo pago ou já lançado em transactions outra vez, e não trate parcelas (installment_purchases) como gasto fixo.
 Diferencie saldo mensal de patrimônio. Respeite ciclos e pagamentos de faturas já presentes nos dados.
 Para projeções, explique brevemente a premissa e sinalize quando faltarem dados (como data do próximo salário).
 Para metas, calcule valor faltante, meses até o prazo e aporte mensal quando possível; ofereça cenários apenas como estimativas.

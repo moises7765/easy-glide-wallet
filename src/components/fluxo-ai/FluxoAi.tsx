@@ -35,7 +35,7 @@ type SpeechRecognitionLike = {
 };
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
-const SUGGESTIONS = ["💰 Minha situação", "🛍️ Posso comprar isso?", "✂️ Como economizar mais?", "🚀 Acelerar minhas metas", "💳 Cartões", "📊 Meus gastos"];
+const SUGGESTIONS = ["💰 Minha situação", "🛍️ Posso comprar isso?", "✂️ Como economizar mais?", "🚀 Acelerar minhas metas", "📌 Meus gastos fixos", "💳 Cartões", "📊 Meus gastos"];
 
 function textOf(message: UIMessage) {
   return message.parts.filter((part) => part.type === "text").map((part) => part.text).join("");
@@ -75,7 +75,9 @@ export function FluxoAiDrawer({ open, onOpenChange }: { open: boolean; onOpenCha
   const { data: goals = [] } = useRows("goals");
   const { data: assets = [] } = useRows("assets");
   const { data: invoicePayments = [] } = useRows("card_invoice_payments");
-  const context: FluxoAiContext = useMemo(() => ({ transactions, categories, cards, purchases, goals, assets, invoicePayments }), [transactions, categories, cards, purchases, goals, assets, invoicePayments]);
+  const { data: fixedExpenses = [] } = useRows("fixed_expenses");
+  const { data: fixedPayments = [] } = useRows("fixed_expense_payments");
+  const context: FluxoAiContext = useMemo(() => ({ transactions, categories, cards, purchases, goals, assets, invoicePayments, fixedExpenses, fixedPayments }), [transactions, categories, cards, purchases, goals, assets, invoicePayments, fixedExpenses, fixedPayments]);
   const [draft, setDraft] = useState("");
   const [pendingLaunch, setPendingLaunch] = useState<LaunchCommand | null>(null);
   const [planning, setPlanning] = useState<PlanningState>(EMPTY_PLANNING);

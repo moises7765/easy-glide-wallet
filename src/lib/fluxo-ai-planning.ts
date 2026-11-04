@@ -1,5 +1,5 @@
 import { addMonths, brl, buildCardInvoices, cardUsed, installmentLines, invoiceDueDate, invoiceKeyForDate, monthKey, monthLong, num, parseDate } from "@/lib/finance";
-import { detectRecurrences, fixedIncreases, fixedSummary, frequencyLabel, sameName, unpaidFixedDues, STATUS_LABEL } from "@/lib/fixed-expenses";
+import { detectRecurrences, fixedIncreases, fixedSummary, sameName, unpaidFixedDues, STATUS_LABEL } from "@/lib/fixed-expenses";
 import { brasiliaToday, parseMoney, wordsToDigits, type FluxoAiContext } from "@/lib/fluxo-ai";
 import { isConsumptionExpense } from "@/lib/savings";
 
@@ -103,7 +103,7 @@ function nextOccurrence(r: Recurring, today: Date) {
  * Caixa: dinheiro disponível e compromissos até uma data
  * ------------------------------------------------------------------------ */
 
-type Item = { label: string; amount: number; date: Date };
+type Item = { label: string; amount: number; date: Date; kind?: "fixed" };
 
 export type CashPicture = {
   cash: number;
@@ -150,7 +150,7 @@ export function cashPicture(context: FluxoAiContext, today: Date, until: Date): 
   // e sem lançamento correspondente), para nunca subtrair duas vezes.
   const fixed = context.fixedExpenses ?? [];
   unpaidFixedDues(fixed, context.fixedPayments ?? [], context.transactions, today, until).forEach((due) =>
-    obligations.push({ label: `${due.fixed.name}${due.status === "vencida" ? " (vencida)" : ""}${due.fixed.is_estimate ? " (estimado)" : ""}`, amount: due.amount, date: due.date }),
+    obligations.push({ label: `${due.fixed.name}${due.status === "vencida" ? " (vencida)" : ""}${due.fixed.is_estimate ? " (estimado)" : ""}`, amount: due.amount, date: due.date, kind: "fixed" }),
   );
 
   const expectedIncome: Item[] = [];
@@ -634,7 +634,7 @@ function freeMoneyNumbers(context: FluxoAiContext, now: Date) {
 export function freeMoneyAnswer(context: FluxoAiContext, now: Date = new Date()) {
   const r = freeMoneyNumbers(context, now);
   if (!r) return "Ainda não consigo calcular: não há saldo de contas em **Patrimônio** nem lançamentos neste mês. Cadastre o saldo da sua conta (marcado como disponível) e pergunte de novo.";
-  const fixedOwed = r.picture.obligations.filter((o) => (context.fixedExpenses ?? []).some((f) => o.label.startsWith(f.name))).reduce((s, o) => s + o.amount, 0);
+  const fixedOwed = r.picture.obligations.filter((o) => o.kind === "fixed").reduce((s, o) => s + o.amount, 0);
   const lines = [`**Você pode gastar até ${brl(Math.max(0, r.free))}** até ${shortDate(r.until)}.`, ""];
   lines.push(`- **Dinheiro disponível:** ${brl(r.picture.cash)} (${r.picture.source === "assets" ? "saldo em contas cadastrado em Patrimônio" : "sobra do mês até agora"}).`);
   if (r.incoming > 0) lines.push(`- **Entradas previstas:** +${brl(r.incoming)} (${r.picture.expectedIncome.map((i) => i.label).join(", ")}, pela recorrência).`);
@@ -645,4 +645,3 @@ export function freeMoneyAnswer(context: FluxoAiContext, now: Date = new Date())
   return lines.join("\n");
 }
 
-export { frequencyLabel };
