@@ -52,9 +52,9 @@ export function planningReply(text: string, state: PlanningState, context: Fluxo
   if (current.lastPurchase && REGISTER_AFTER_SIMULATION.test(value) && !parseMoney(text)) {
     return { state: EMPTY_PLANNING, launchText: purchaseLaunchText(current.lastPurchase) };
   }
-  if (isPurchaseQuestion(text) && !EXPLICIT_ORDER.test(value)) return purchaseReply(parsePurchaseQuery(text, context), context, now);
   // Gastos fixos e dinheiro livre: só leitura. Ordens ("paguei a luz 180") seguem para o lançamento.
   if (!EXPLICIT_ORDER.test(value) && isFreeMoneyQuestion(text)) return { state: current, reply: freeMoneyAnswer(context, now) };
+  if (isPurchaseQuestion(text) && !EXPLICIT_ORDER.test(value)) return purchaseReply(parsePurchaseQuery(text, context), context, now);
   if (!EXPLICIT_ORDER.test(value) && isFixedQuestion(text)) return { state: current, reply: fixedExpensesAnswer(context, now) };
   const extra = parseExtraSavings(text);
   if (extra) return { state: current, reply: goalsStrategyAnswer(context, now, extra) };
