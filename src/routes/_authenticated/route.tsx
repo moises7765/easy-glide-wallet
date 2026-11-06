@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
-import { CreditCard, Home, LayoutGrid, Plus, Receipt, Target } from "lucide-react";
+import { CalendarClock, CreditCard, Home, LayoutGrid, Plus, Receipt, Target } from "lucide-react";
 import { useState } from "react";
 
 import { QuickAdd } from "@/components/QuickAdd";
@@ -32,6 +32,7 @@ const TABS = [
   { to: "/inicio", label: "Início", icon: Home },
   { to: "/lancamentos", label: "Lançamentos", icon: Receipt },
   { to: "/cartoes", label: "Cartões", icon: CreditCard },
+  { to: "/gastos-fixos", label: "Gastos fixos", icon: CalendarClock },
   { to: "/metas", label: "Metas", icon: Target },
   { to: "/mais", label: "Mais", icon: LayoutGrid },
 ] as const;
