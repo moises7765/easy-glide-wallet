@@ -134,7 +134,7 @@ export function matchTransaction(f: FixedExpense, due: Date, transactions: Tx[],
     const delta = Math.abs(num(t.amount) - amount);
     if (delta > tolerance) return false;
     if (sameName(f.name, t.description ?? "")) return true;
-    return Boolean(f.category_id) && t.category_id === f.category_id && delta <= Math.max(1, amount * 0.03);
+    return false; // Categoria e valor sozinhos não identificam uma conta com segurança.
   });
   return candidates.sort((a, b) => Math.abs(dayDiff(parseDate(a.date), due)) - Math.abs(dayDiff(parseDate(b.date), due)))[0] ?? null;
 }
@@ -254,8 +254,9 @@ export function fixedIncreases(fixedExpenses: FixedExpense[], payments: FixedPay
     .map((f) => {
       const history = settled.filter((i) => i.fixed.id === f.id);
       if (history.length < 2) return null;
-      const last = history.at(-1)!;
-      const previous = history.at(-2)!;
+      const last = history.at(-1);
+      const previous = history.at(-2);
+      if (!last || !previous) return null;
       const delta = last.amount - previous.amount;
       if (delta < 1 || delta < previous.amount * 0.05) return null;
       return { fixed: f, previous: previous.amount, last: last.amount, delta, lastDate: last.date };
@@ -292,7 +293,8 @@ export function recurrenceSignature(description: string) {
 const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+  if (!sorted.length) return 0;
+  return sorted.length % 2 ? (sorted[mid] ?? 0) : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
 };
 const mostFrequent = <T,>(values: T[]) => {
   const counts = new Map<T, number>();
@@ -334,14 +336,15 @@ export function detectRecurrences(
     const days = [...byDay.keys()].sort();
     if (days.length < 3) return;
     const dates = days.map(parseDate);
-    const gaps = dates.slice(1).map((d, i) => dayDiff(d, dates[i]!));
+    const gaps = dates.slice(1).map((d, i) => dayDiff(d, dates[i] ?? d));
     const gap = median(gaps);
-    const amounts = days.map((d) => byDay.get(d)!.reduce((s, t) => s + num(t.amount), 0));
+    const amounts = days.map((d) => (byDay.get(d) ?? []).reduce((s, t) => s + num(t.amount), 0));
     const typical = median(amounts);
     if (typical <= 0) return;
     const spread = Math.max(...amounts.map((a) => Math.abs(a - typical))) / typical;
     if (spread > 0.35) return;
-    const last = dates.at(-1)!;
+    const last = dates.at(-1);
+    if (!last) return;
     let frequency: "weekly" | "monthly";
     if (gap >= 26 && gap <= 35 && gaps.every((g) => g >= 20 && g <= 40)) {
       if (new Set(days.map((d) => d.slice(0, 7))).size < 3 || dayDiff(today, last) > 45) return;
@@ -359,7 +362,11 @@ export function detectRecurrences(
       next = clampDay(today.getFullYear(), today.getMonth(), dueDay);
       if (monthKey(last) === monthKey(today) || next < today) next = clampDay(today.getFullYear(), today.getMonth() + 1, dueDay);
     }
-    const latest = byDay.get(days.at(-1)!)!.at(-1)!;
+    const lastDay = days.at(-1);
+    const firstDay = days[0];
+    if (!lastDay || !firstDay) return;
+    const latest = byDay.get(lastDay)?.at(-1);
+    if (!latest) return;
     out.push({
       signature,
       name: (latest.description ?? signature).trim(),
@@ -369,8 +376,8 @@ export function detectRecurrences(
       dueDay,
       nextDate: toISODate(next),
       occurrences: days.length,
-      firstDate: days[0]!,
-      lastDate: days.at(-1)!,
+      firstDate: firstDay,
+      lastDate: lastDay,
       categoryId: mostFrequent(rows.map((t) => t.category_id)),
       paymentMethod: mostFrequent(rows.map((t) => t.payment_method ?? null)),
     });
@@ -409,9 +416,9 @@ export function validateFixedForm(form: FixedForm): string | null {
   const amount = parseAmountInput(form.amount);
   if (!(amount > 0)) return "Informe um valor maior que zero.";
   if (amount >= 100_000_000) return "Valor muito alto.";
-  if (form.frequency === "monthly" && !(form.due_day >= 1 && form.due_day <= 31)) return "O dia do vencimento vai de 1 a 31.";
-  if (form.frequency !== "monthly" && !/^\d{4}-\d{2}-\d{2}$/.test(form.next_date)) return "Informe a data do próximo vencimento.";
-  if (form.frequency === "custom" && !(form.interval_months >= 1 && form.interval_months <= 24)) return "O intervalo vai de 1 a 24 meses.";
+  if (form.frequency === "monthly" && !(Number.isInteger(form.due_day) && form.due_day >= 1 && form.due_day <= 31)) return "O dia do vencimento vai de 1 a 31.";
+  if (form.frequency !== "monthly" && (!/^\d{4}-\d{2}-\d{2}$/.test(form.next_date) || toISODate(parseDate(form.next_date)) !== form.next_date)) return "Informe uma data válida para o próximo vencimento.";
+  if (form.frequency === "custom" && !(Number.isInteger(form.interval_months) && form.interval_months >= 1 && form.interval_months <= 24)) return "O intervalo vai de 1 a 24 meses.";
   if (form.note.length > 500) return "Observações com até 500 caracteres.";
   return null;
 }

@@ -72,12 +72,19 @@ export function useRows<T extends TableName>(table: T) {
     enabled: ready,
     queryFn: async () => {
       const order = ORDER[table];
-      const { data, error } = await supabase
-        .from(table)
-        .select("*")
-        .order(order.column, { ascending: order.ascending });
-      if (error) throw error;
-      return (data ?? []) as Tables<T>[];
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Sessão expirada");
+      const rows: Tables<T>[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const { data, error } = await supabase.from(table).select("*")
+          .eq("user_id", auth.user.id)
+          .order(order.column, { ascending: order.ascending }).order("id")
+          .range(offset, offset + 499);
+        if (error) throw error;
+        const page = (data ?? []) as Tables<T>[];
+        rows.push(...page);
+        if (page.length < 500) return rows;
+      }
     },
   });
 }
@@ -321,10 +328,9 @@ export type PayFixedInput = {
   periodKey: string;
   dueDate: string;
   amount: number;
-  /** status: só marca como paga · link: vincula um lançamento já existente · launch: cria a despesa (ação explícita). */
-  mode: "status" | "link" | "launch";
+  /** Pagamentos de gastos fixos nunca criam despesas; podem vincular uma já existente. */
+  mode: "status" | "link";
   transactionId?: string | null;
-  launch?: { date: string; description: string; category_id: string | null; payment_method: string };
 };
 
 export function usePayFixedExpense() {
@@ -334,6 +340,8 @@ export function usePayFixedExpense() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Sessão expirada");
       const userId = auth.user.id;
+      if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Informe um valor pago válido");
+      if (input.mode === "link" && !input.transactionId) throw new Error("Escolha o lançamento existente");
       // Idempotente: um pagamento por gasto fixo e período.
       const { data: existing, error: findErr } = await supabase
         .from("fixed_expense_payments")
@@ -344,26 +352,7 @@ export function usePayFixedExpense() {
       if (findErr) throw findErr;
       if (existing) return "already" as const;
 
-      let transactionId = input.mode === "link" ? input.transactionId ?? null : null;
-      let created = false;
-      if (input.mode === "launch" && input.launch) {
-        const { data: tx, error: txErr } = await supabase
-          .from("transactions")
-          .insert({
-            user_id: userId,
-            type: "expense",
-            amount: input.amount,
-            date: input.launch.date,
-            description: input.launch.description,
-            category_id: input.launch.category_id,
-            payment_method: input.launch.payment_method,
-          })
-          .select("id")
-          .single();
-        if (txErr) throw txErr;
-        transactionId = tx.id;
-        created = true;
-      }
+      const transactionId = input.mode === "link" ? input.transactionId ?? null : null;
       const { error } = await supabase.from("fixed_expense_payments").insert({
         user_id: userId,
         fixed_expense_id: input.fixedExpenseId,
@@ -371,20 +360,21 @@ export function usePayFixedExpense() {
         due_date: input.dueDate,
         amount: input.amount,
         transaction_id: transactionId,
-        created_transaction: created,
+        created_transaction: false,
       });
       if (error) {
-        // Outro toque já registrou este período: desfaz a despesa recém-criada para não duplicar.
-        if (created && transactionId) await supabase.from("transactions").delete().eq("id", transactionId);
-        if (error.code === "23505") return "already" as const;
+        if (error.code === "23505") {
+          const { data: repeated } = await supabase.from("fixed_expense_payments").select("id").eq("fixed_expense_id", input.fixedExpenseId).eq("period_key", input.periodKey).maybeSingle();
+          if (repeated) return "already" as const;
+          throw new Error("Este lançamento já está vinculado a outro pagamento");
+        }
         throw error;
       }
-      return created ? ("launched" as const) : ("paid" as const);
+      return "paid" as const;
     },
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["fixed_expense_payments"] });
-      if (result === "launched") invalidate(qc, "transactions");
-      toast.success(result === "already" ? "Este vencimento já estava pago" : result === "launched" ? "Pago e lançado como despesa" : "Marcado como pago");
+      toast.success(result === "already" ? "Este vencimento já estava pago" : "Marcado como pago");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -395,13 +385,10 @@ export function useUnpayFixedExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payment: { id: string; transaction_id: string | null; created_transaction: boolean }) => {
-      if (payment.created_transaction && payment.transaction_id) {
-        const { error: txErr } = await supabase.from("transactions").delete().eq("id", payment.transaction_id);
-        if (txErr) throw txErr;
-      }
+      // Desfaz apenas o status. Lançamentos reais são sempre preservados.
       const { error } = await supabase.from("fixed_expense_payments").delete().eq("id", payment.id);
       if (error) throw error;
-      return payment.created_transaction;
+      return false;
     },
     onSuccess: (removedTx) => {
       qc.invalidateQueries({ queryKey: ["fixed_expense_payments"] });
