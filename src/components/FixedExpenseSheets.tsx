@@ -15,7 +15,7 @@ export function FixedSelect({ id, label, value, onChange, options }: { id: strin
   return <div className="space-y-1.5"><Label htmlFor={id}>{label}</Label><Select value={value} onValueChange={onChange}><SelectTrigger id={id}><SelectValue /></SelectTrigger><SelectContent>{options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>;
 }
 
-export function FixedExpenseSheet({ initial, existing, signature, categories, today, onClose }: { initial: FixedForm; existing?: FixedExpense; signature?: string; categories: Tables<"categories">[]; today: Date; onClose: () => void }) {
+export function FixedExpenseSheet({ initial, existing, signature, categories, today, onClose }: { initial: FixedForm; existing?: FixedExpense | undefined; signature?: string | undefined; categories: Tables<"categories">[]; today: Date; onClose: () => void }) {
   const [form, setForm] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -67,7 +67,7 @@ export function FixedPaymentSheet({ item, transactions, payments, onClose }: { i
       const value = mode === "link" && selected ? Number(selected.amount) : parseAmountInput(amount);
       if (!(value > 0)) { setError("Informe o valor pago."); return; }
       if (mode === "link" && !selected) { setError("Escolha o lançamento já registrado."); return; }
-      try { await pay.mutateAsync({ fixedExpenseId: item.fixed.id, periodKey: item.key, dueDate: toISODate(item.date), amount: value, mode: mode === "link" ? "link" : "status", transactionId: selected?.id }); onClose(); } catch { setError("Não foi possível registrar o pagamento. Tente novamente."); }
+      try { await pay.mutateAsync({ fixedExpenseId: item.fixed.id, periodKey: item.key, dueDate: toISODate(item.date), amount: value, mode: mode === "link" ? "link" : "status", transactionId: selected?.id ?? null }); onClose(); } catch { setError("Não foi possível registrar o pagamento. Tente novamente."); }
     }}>
       <p className="text-sm text-muted-foreground">Vencimento {item.date.toLocaleDateString("pt-BR")}. Nenhuma nova despesa será criada.</p>
       <FixedSelect id="fixed-payment-mode" label="Registrar pagamento" value={mode} onChange={setMode} options={[{ value: "status", label: "Apenas marcar como paga" }, { value: "link", label: "Vincular lançamento existente" }]} />

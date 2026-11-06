@@ -77,7 +77,7 @@ export function useRows<T extends TableName>(table: T) {
       const rows: Tables<T>[] = [];
       for (let offset = 0; ; offset += 500) {
         const { data, error } = await supabase.from(table).select("*")
-          .eq("user_id", auth.user.id)
+          .filter("user_id", "eq", auth.user.id)
           .order(order.column, { ascending: order.ascending }).order("id")
           .range(offset, offset + 499);
         if (error) throw error;
