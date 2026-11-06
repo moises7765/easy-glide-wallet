@@ -13,3 +13,9 @@
 - [x] Chat: new chips, routing before launch parsing, "comprei" after a simulation registers it.
 - [x] Unit tests, type check.
 - [ ] Build, mocked chat check, publish.
+# Gastos fixos
+- [x] Persistência protegida, pagamentos por período e integração com Fluxo IA.
+- [ ] Tela, navegação, formulário e pagamentos sem criar despesas automaticamente.
+- [ ] Sugestões de recorrência com adicionar/ignorar e histórico de pagamentos.
+- [ ] Testes sintéticos dos cálculos, pagamentos e isolamento; verificar celular/computador.
+- [ ] Confirmar validações e informar status (sem publicação automática).

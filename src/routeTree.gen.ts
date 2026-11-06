@@ -16,6 +16,7 @@ import { Route as ConfirmarRouteImport } from './routes/confirmar'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedCartoesRouteImport } from './routes/_authenticated/cartoes'
+import { Route as AuthenticatedGastosFixosRouteImport } from './routes/_authenticated/gastos-fixos'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedLancamentosRouteImport } from './routes/_authenticated/lancamentos'
 import { Route as AuthenticatedMaisRouteImport } from './routes/_authenticated/mais'
@@ -62,6 +63,12 @@ const AuthenticatedCartoesRoute = AuthenticatedCartoesRouteImport.update({
   path: '/cartoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedGastosFixosRoute =
+  AuthenticatedGastosFixosRouteImport.update({
+    id: '/gastos-fixos',
+    path: '/gastos-fixos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInicioRoute = AuthenticatedInicioRouteImport.update({
   id: '/inicio',
   path: '/inicio',
@@ -129,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
+  '/gastos-fixos': typeof AuthenticatedGastosFixosRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/lancamentos': typeof AuthenticatedLancamentosRoute
   '/mais': typeof AuthenticatedMaisRoute
@@ -148,6 +156,7 @@ export interface FileRoutesByTo {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/cartoes': typeof AuthenticatedCartoesRoute
+  '/gastos-fixos': typeof AuthenticatedGastosFixosRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/lancamentos': typeof AuthenticatedLancamentosRoute
   '/mais': typeof AuthenticatedMaisRoute
@@ -169,6 +178,7 @@ export interface FileRoutesById {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/cartoes': typeof AuthenticatedCartoesRoute
+  '/_authenticated/gastos-fixos': typeof AuthenticatedGastosFixosRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/lancamentos': typeof AuthenticatedLancamentosRoute
   '/_authenticated/mais': typeof AuthenticatedMaisRoute
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/sitemap.xml'
     | '/cartoes'
+    | '/gastos-fixos'
     | '/inicio'
     | '/lancamentos'
     | '/mais'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/sitemap.xml'
     | '/cartoes'
+    | '/gastos-fixos'
     | '/inicio'
     | '/lancamentos'
     | '/mais'
@@ -229,6 +241,7 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/sitemap.xml'
     | '/_authenticated/cartoes'
+    | '/_authenticated/gastos-fixos'
     | '/_authenticated/inicio'
     | '/_authenticated/lancamentos'
     | '/_authenticated/mais'
@@ -303,6 +316,13 @@ declare module '@tanstack/react-router' {
       path: '/cartoes'
       fullPath: '/cartoes'
       preLoaderRoute: typeof AuthenticatedCartoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/gastos-fixos': {
+      id: '/_authenticated/gastos-fixos'
+      path: '/gastos-fixos'
+      fullPath: '/gastos-fixos'
+      preLoaderRoute: typeof AuthenticatedGastosFixosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inicio': {
@@ -387,6 +407,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCartoesRoute: typeof AuthenticatedCartoesRoute
+  AuthenticatedGastosFixosRoute: typeof AuthenticatedGastosFixosRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedLancamentosRoute: typeof AuthenticatedLancamentosRoute
   AuthenticatedMaisRoute: typeof AuthenticatedMaisRoute
@@ -399,6 +420,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCartoesRoute: AuthenticatedCartoesRoute,
+  AuthenticatedGastosFixosRoute: AuthenticatedGastosFixosRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedLancamentosRoute: AuthenticatedLancamentosRoute,
   AuthenticatedMaisRoute: AuthenticatedMaisRoute,
