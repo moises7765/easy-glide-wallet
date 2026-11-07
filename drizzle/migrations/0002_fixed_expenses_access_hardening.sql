@@ -1,0 +1,2 @@
+REVOKE ALL ON public.fixed_expenses, public.fixed_expense_payments, public.recurrence_dismissals FROM anon;
+CREATE POLICY "fixed expense category ownership" ON public.fixed_expenses AS RESTRICTIVE FOR ALL TO authenticated USING (true) WITH CHECK (category_id IS NULL OR EXISTS (SELECT 1 FROM public.categories c WHERE c.id = category_id AND c.user_id = auth.uid()));
