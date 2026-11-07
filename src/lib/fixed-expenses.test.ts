@@ -42,7 +42,7 @@ describe("sugestões: não cadastram automaticamente", () => {
   it("exige histórico suficiente", () => { expect(detectRecurrences(rows.slice(0, 2), [], new Set(), today)).toHaveLength(0); expect(detectRecurrences(rows, [], new Set(), today)[0]).toMatchObject({ name: "Internet", amount: 100, frequency: "monthly" }); });
   it("ignoradas e já adicionadas não reaparecem", () => { expect(detectRecurrences(rows, [], new Set(["internet"]), today)).toHaveLength(0); expect(detectRecurrences(rows, [fixed({ source_signature: "internet" })], new Set(), today)).toHaveLength(0); });
   it("pagamentos de fatura e descrições de parcelas não são sugestões", () => { expect(detectRecurrences(rows.map((t) => ({ ...t, invoice_payment_id: "p" })), [], new Set(), today)).toHaveLength(0); expect(detectRecurrences(rows.map((t) => ({ ...t, description: "Notebook parcela 2/10" })), [], new Set(), today)).toHaveLength(0); });
-  it("detecta semanal só com quatro ocorrências", () => expect(detectRecurrences([7, 14, 21, 28].map((d) => tx(`${d}`, `2026-10-${d}`, "Faxina", 120)), [], new Set(), today)[0]?.frequency).toBe("weekly"));
+  it("detecta semanal só com quatro ocorrências", () => { const weekly = [7, 14, 21, 28].map((d) => tx(`${d}`, `2026-10-${String(d).padStart(2, "0")}`, "Faxina", 120)); expect(detectRecurrences(weekly.slice(1), [], new Set(), today)).toHaveLength(0); expect(detectRecurrences(weekly, [], new Set(), today)[0]?.frequency).toBe("weekly"); });
 });
 
 describe("formulário: valores e datas válidos", () => {

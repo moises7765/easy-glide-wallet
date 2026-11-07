@@ -15,6 +15,13 @@
       "when": 1793750870432,
       "tag": "0001_fixed_expense_payments_tx_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794053073691,
+      "tag": "0002_fixed_expenses_access_hardening",
+      "breakpoints": true
     }
   ]
 }
