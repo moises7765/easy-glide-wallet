@@ -22,3 +22,8 @@
 - [x] RLS e permissões verificadas em leitura; acesso anônimo removido e categoria restrita ao proprietário.
 - [ ] Verificação com sessão real e isolamento entre duas contas: requer login no preview (sessão automática indisponível).
 - [x] Mantido apenas no preview, sem publicação automática.
+
+# Bottom navigation
+- [x] Remove "Metas" from the bottom bar; bar is Início | Lançamentos | Cartões | Gastos fixos | Mais.
+- [x] Metas route untouched and still reachable from "Mais"; type check, build and mobile browser check passed; published.
+
