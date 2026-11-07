@@ -67,6 +67,6 @@ function FixedExpensesPage() {
     </>}
     {editing && <FixedExpenseSheet initial={editing.form} existing={editing.existing} signature={editing.signature} categories={categories} today={today} onClose={() => setEditing(null)} />}
     {paying && <FixedPaymentSheet item={paying} transactions={transactions} payments={payments} onClose={() => setPaying(null)} />}
-    {undo?.payment && <BottomSheet open onOpenChange={(v) => !v && setUndo(null)} title="Desfazer pagamento"><p className="mb-4 text-sm">{undo.fixed.name} voltará a ficar pendente. {undo.payment.created_transaction ? "Apenas a despesa criada por este pagamento será removida." : "Nenhum lançamento será removido."}</p><Button className="w-full" disabled={unpay.isPending} onClick={async () => { if (!undo.payment) return; try { await unpay.mutateAsync(undo.payment); setUndo(null); } catch { /* Toast da mutation */ } }}>Confirmar</Button></BottomSheet>}
+    {undo?.payment && <BottomSheet open onOpenChange={(v) => !v && setUndo(null)} title="Desfazer pagamento"><p className="mb-4 text-sm">O status de pagamento de {undo.fixed.name} será removido. Nenhum lançamento será removido; se houver uma despesa correspondente, ela continuará identificada na agenda.</p><Button className="w-full" disabled={unpay.isPending} onClick={async () => { if (!undo.payment) return; try { await unpay.mutateAsync(undo.payment); setUndo(null); } catch { /* Toast da mutation */ } }}>Confirmar</Button></BottomSheet>}
   </div>;
 }
