@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Tables } from "@/integrations/supabase/types";
 import { brl, parseDate, toISODate } from "@/lib/finance";
 import { FREQUENCIES, formToValues, parseAmountInput, validateFixedForm, type DueItem, type FixedExpense, type FixedForm } from "@/lib/fixed-expenses";
-import { useCreate, usePayFixedExpense, useRemove, useUpdate } from "@/lib/queries";
+import { useCreate, useDismissRecurrence, usePayFixedExpense, useRemove, useUpdate } from "@/lib/queries";
 
 export function FixedSelect({ id, label, value, onChange, options }: { id: string; label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
   return <div className="space-y-1.5"><Label htmlFor={id}>{label}</Label><Select value={value} onValueChange={onChange}><SelectTrigger id={id}><SelectValue /></SelectTrigger><SelectContent>{options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>;
@@ -22,6 +22,7 @@ export function FixedExpenseSheet({ initial, existing, signature, categories, to
   const create = useCreate("fixed_expenses", "Gasto fixo adicionado");
   const update = useUpdate("fixed_expenses", "Gasto fixo atualizado");
   const remove = useRemove("fixed_expenses", "Gasto fixo excluído");
+  const dismiss = useDismissRecurrence();
   const busy = create.isPending || update.isPending || remove.isPending;
   const set = <K extends keyof FixedForm>(key: K, value: FixedForm[K]) => setForm((f) => ({ ...f, [key]: value }));
   const save = async () => {
@@ -31,7 +32,10 @@ export function FixedExpenseSheet({ initial, existing, signature, categories, to
     try {
       const values = formToValues(form, today, existing);
       if (existing) await update.mutateAsync({ id: existing.id, values });
-      else await create.mutateAsync({ ...values, source_signature: signature ?? null });
+      else {
+        await create.mutateAsync({ ...values, source_signature: signature ?? null });
+        if (signature) await dismiss.mutateAsync(signature);
+      }
       onClose();
     } catch { setError("Não foi possível salvar. Tente novamente."); }
   };

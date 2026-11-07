@@ -380,7 +380,7 @@ export function usePayFixedExpense() {
   });
 }
 
-/** Desfaz o pagamento; remove só a despesa criada por ele (lançamentos vinculados ficam). */
+/** Desfaz só o status de pagamento; todos os lançamentos reais ficam preservados. */
 export function useUnpayFixedExpense() {
   const qc = useQueryClient();
   return useMutation({

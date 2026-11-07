@@ -12,10 +12,13 @@
 - [x] Local module: savings opportunities (non-essential only, monthly/annual estimates), goal scenarios, "e se eu economizar R$ X" simulation.
 - [x] Chat: new chips, routing before launch parsing, "comprei" after a simulation registers it.
 - [x] Unit tests, type check.
-- [ ] Build, mocked chat check, publish.
+- [x] Build and mocked fixed-expense chat integration verified; purchase/savings unit tests pass.
+- [ ] Dedicated purchase/savings browser check and publication (deferred; this request does not authorize automatic publication).
 # Gastos fixos
 - [x] Persistência protegida, pagamentos por período e integração com Fluxo IA.
-- [ ] Tela, navegação, formulário e pagamentos sem criar despesas automaticamente.
-- [ ] Sugestões de recorrência com adicionar/ignorar e histórico de pagamentos.
-- [ ] Testes sintéticos dos cálculos, pagamentos e isolamento; verificar celular/computador.
-- [ ] Confirmar validações e informar status (sem publicação automática).
+- [x] Tela, navegação, formulário e pagamentos sem criar despesas automaticamente.
+- [x] Sugestões de recorrência com adicionar/ignorar e histórico de pagamentos.
+- [x] 80 testes sintéticos; CRUD/pagamento e dinheiro livre no chat mockados no celular/computador; TypeScript/build OK.
+- [x] RLS e permissões verificadas em leitura; acesso anônimo removido e categoria restrita ao proprietário.
+- [ ] Verificação com sessão real e isolamento entre duas contas: requer login no preview (sessão automática indisponível).
+- [x] Mantido apenas no preview, sem publicação automática.
