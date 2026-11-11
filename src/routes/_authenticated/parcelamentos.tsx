@@ -24,6 +24,8 @@ export const Route = createFileRoute("/_authenticated/parcelamentos")({
       { name: "description", content: "Todas as compras parceladas e os meses comprometidos." },
       { property: "og:title", content: "Parcelamentos — Fluxo Finanças" },
       { property: "og:description", content: "Todas as compras parceladas e os meses comprometidos." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: InstallmentsPage,
@@ -32,13 +34,14 @@ export const Route = createFileRoute("/_authenticated/parcelamentos")({
 function InstallmentsPage() {
   const { data: purchases = [] } = useRows("installment_purchases");
   const { data: cards = [] } = useRows("cards");
+  const { data: payments = [] } = useRows("card_invoice_payments");
   const [editing, setEditing] = useState<InstallmentPurchase | null>(null);
 
-  const totalLeft = purchases.reduce((s, p) => s + remainingOf(p).total, 0);
+  const totalLeft = purchases.reduce((s, p) => s + remainingOf(p, payments).total, 0);
 
   const byMonth = new Map<string, number>();
   purchases
-    .flatMap(installmentLines)
+    .flatMap((p) => installmentLines(p, payments))
     .filter((l) => !l.paid)
     .forEach((l) => byMonth.set(l.monthKey, (byMonth.get(l.monthKey) ?? 0) + l.amount));
   const months = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(0, 12);
@@ -82,9 +85,9 @@ function InstallmentsPage() {
 
       <div className="space-y-3 px-5">
         {purchases.map((p) => {
-          const r = remainingOf(p);
+          const r = remainingOf(p, payments);
           const card = cards.find((c) => c.id === p.card_id);
-          const next = installmentLines(p).find((l) => !l.paid);
+          const next = installmentLines(p, payments).find((l) => !l.paid);
           return (
             <Panel key={p.id}>
               <button type="button" className="w-full text-left" onClick={() => setEditing(p)}>
@@ -102,12 +105,12 @@ function InstallmentsPage() {
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
                     className="h-full rounded-full bg-primary"
-                    style={{ width: `${pct(p.installments_paid, r.count)}%` }}
+                    style={{ width: `${pct(r.paid, r.count)}%` }}
                   />
                 </div>
                 <div className="mt-2 flex justify-between text-xs text-muted-foreground">
                   <span>
-                    {p.installments_paid} pagas · {r.left} restantes
+                    {r.paid} pagas · {r.left} restantes
                   </span>
                   <span>
                     {next
@@ -174,13 +177,13 @@ function InstallmentSheet({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-muted-foreground">Parcelas pagas</Label>
+            <Label className="text-xs text-muted-foreground">Pagas manualmente</Label>
             <Input
               className="mt-1"
               type="number"
               min={0}
-              value={form.installments_paid}
-              onChange={(e) => setForm({ ...form, installments_paid: Number(e.target.value) })}
+              value={form.manual_installments_paid ?? form.installments_paid}
+              onChange={(e) => setForm({ ...form, manual_installments_paid: Number(e.target.value) })}
             />
           </div>
           <div>
@@ -199,7 +202,7 @@ function InstallmentSheet({
           onClick={() =>
             setForm({
               ...form,
-              installments_paid: Math.min(form.installments_count, form.installments_paid + 1),
+              manual_installments_paid: Math.min(form.installments_count, (form.manual_installments_paid ?? form.installments_paid) + 1),
             })
           }
         >
@@ -225,7 +228,7 @@ function InstallmentSheet({
                   description: form.description,
                   total_amount: form.total_amount,
                   installments_count: form.installments_count,
-                  installments_paid: form.installments_paid,
+                  manual_installments_paid: form.manual_installments_paid ?? form.installments_paid,
                   first_due_date: form.first_due_date,
                 },
               });

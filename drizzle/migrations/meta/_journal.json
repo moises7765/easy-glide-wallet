@@ -22,6 +22,13 @@
       "when": 1794053073691,
       "tag": "0002_fixed_expenses_access_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794438653862,
+      "tag": "0003_invoice_installment_progress",
+      "breakpoints": true
     }
   ]
 }

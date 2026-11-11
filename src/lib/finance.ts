@@ -117,7 +117,7 @@ export type InstallmentLine = {
   paid: boolean;
 };
 
-export function installmentLines(p: InstallmentPurchase): InstallmentLine[] {
+export function installmentLines(p: InstallmentPurchase, payments: InvoicePayment[] = []): InstallmentLine[] {
   const count = Math.max(1, p.installments_count);
   const amount = num(p.total_amount) / count;
   const first = parseDate(p.first_due_date);
@@ -129,15 +129,19 @@ export function installmentLines(p: InstallmentPurchase): InstallmentLine[] {
       amount,
       dueDate,
       monthKey: monthKey(dueDate),
-      paid: i < p.installments_paid,
+      // The total counter may contain non-contiguous invoice settlements.
+      // Only the manual prefix can determine which scheduled lines it covers.
+      paid: i < (p.manual_installments_paid ?? p.installments_paid) ||
+        Boolean(p.card_id && payments.some((payment) =>
+          payment.card_id === p.card_id && payment.invoice_key === monthKey(dueDate))),
     };
   });
 }
 
-export function remainingOf(p: InstallmentPurchase) {
+export function remainingOf(p: InstallmentPurchase, payments: InvoicePayment[] = []) {
   const count = Math.max(1, p.installments_count);
-  const left = Math.max(0, count - p.installments_paid);
-  return { count, left, amount: num(p.total_amount) / count, total: (num(p.total_amount) / count) * left };
+  const left = installmentLines(p, payments).filter((line) => !line.paid).length;
+  return { count, paid: count - left, left, amount: num(p.total_amount) / count, total: (num(p.total_amount) / count) * left };
 }
 
 /* ---------------------------------------------------------------------------
@@ -203,7 +207,7 @@ export function cardInvoice(
     .reduce((s, t) => s + num(t.amount), 0);
   const parcels = purchases
     .filter((p) => p.card_id === cardId)
-    .flatMap(installmentLines)
+    .flatMap((p) => installmentLines(p))
     .filter((l) => l.monthKey === key)
     .reduce((s, l) => s + l.amount, 0);
   return single + parcels;
@@ -248,7 +252,7 @@ export function cardInvoiceKeys(
     .forEach((t) => keys.add(invoiceKeyForDate(card, t.date)));
   purchases
     .filter((p) => p.card_id === card.id)
-    .flatMap(installmentLines)
+    .flatMap((p) => installmentLines(p))
     .forEach((l) => keys.add(l.monthKey));
   keys.add(invoiceKeyForDate(card, now));
   nextMonthKeys(future + 1, now).forEach((k) => keys.add(k));
@@ -297,7 +301,7 @@ export function pendingInvoices(invoices: CardInvoice[]) {
 /** Fatura em foco: a mais antiga pendente; senão a próxima a vencer. */
 export function currentInvoice(invoices: CardInvoice[], now = new Date()) {
   const pending = pendingInvoices(invoices);
-  if (pending.length > 0) return pending[0]!;
+  if (pending.length > 0) return pending[0] ?? null;
   return invoices.find((i) => i.dueDate >= startOfDay(now)) ?? invoices.at(-1) ?? null;
 }
 
@@ -311,7 +315,7 @@ export function cardUsed(
 ) {
   const committed = purchases
     .filter((p) => p.card_id === cardId)
-    .reduce((s, p) => s + remainingOf(p).total, 0);
+    .reduce((s, p) => s + remainingOf(p, payments).total, 0);
   const paidKeys = new Set(
     payments.filter((p) => p.card_id === cardId).map((p) => p.invoice_key),
   );

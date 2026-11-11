@@ -142,7 +142,7 @@ export function cashPicture(context: FluxoAiContext, today: Date, until: Date): 
   });
   context.purchases
     .filter((p) => !p.card_id)
-    .flatMap(installmentLines)
+    .flatMap((p) => installmentLines(p, payments))
     .filter((line) => !line.paid && line.dueDate >= today && line.dueDate <= until)
     .forEach((line) => obligations.push({ label: `Parcela ${line.purchase.description}`, amount: line.amount, date: line.dueDate }));
 
@@ -444,8 +444,8 @@ export function savingsOpportunities(context: FluxoAiContext, now: Date = new Da
 
   const first = new Date(today.getFullYear(), today.getMonth(), 1);
   const nextKey = monthKey(addMonths(first, 1));
-  const installmentsNext = context.purchases.flatMap(installmentLines).filter((l) => !l.paid && l.monthKey === nextKey).reduce((s, l) => s + l.amount, 0);
-  const lastInstallment = context.purchases.flatMap(installmentLines).filter((l) => !l.paid).map((l) => l.dueDate).sort((a, b) => b.getTime() - a.getTime())[0];
+  const installmentsNext = context.purchases.flatMap((p) => installmentLines(p, context.invoicePayments)).filter((l) => !l.paid && l.monthKey === nextKey).reduce((s, l) => s + l.amount, 0);
+  const lastInstallment = context.purchases.flatMap((p) => installmentLines(p, context.invoicePayments)).filter((l) => !l.paid).map((l) => l.dueDate).sort((a, b) => b.getTime() - a.getTime())[0];
   const payments = context.invoicePayments ?? [];
   const oldest = new Date(today.getTime() - 40 * DAY);
   const overdue = context.cards.flatMap((card) => buildCardInvoices(card, context.transactions, context.purchases, payments, today)
@@ -613,7 +613,7 @@ export function fixedExpensesAnswer(context: FluxoAiContext, now: Date = new Dat
     lines.push("", "**Aumentaram**");
     increases.forEach((x) => lines.push(`- ${x.fixed.name}: ${brl(x.previous)} → ${brl(x.last)} (+${brl(x.delta)})`));
   }
-  const installmentsMonth = context.purchases.flatMap(installmentLines).filter((l) => !l.paid && l.monthKey === monthKey(today)).reduce((sum, l) => sum + l.amount, 0);
+  const installmentsMonth = context.purchases.flatMap((p) => installmentLines(p, context.invoicePayments)).filter((l) => !l.paid && l.monthKey === monthKey(today)).reduce((sum, l) => sum + l.amount, 0);
   if (installmentsMonth > 0) lines.push("", `_Parcelas de compras (${brl(installmentsMonth)} neste mês) ficam à parte: estão em Parcelamentos e nas faturas, não nos gastos fixos._`);
   const free = freeMoneyNumbers(context, now);
   if (free) lines.push("", `**Dinheiro livre até ${shortDate(free.until)}:** ${brl(free.free)} depois de faturas, parcelas e gastos fixos ainda não pagos.`);
