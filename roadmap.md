@@ -27,3 +27,7 @@
 - [x] Remove "Metas" from the bottom bar; bar is Início | Lançamentos | Cartões | Gastos fixos | Mais.
 - [x] Metas route untouched and still reachable from "Mais"; type check, build and mobile browser check passed; published.
 
+# Invoice installment settlement
+- [ ] Persist invoice-linked installment settlement, preserve manual progress and undo, and update all remaining/limit calculations.
+- [ ] Synthetic regression tests and iPhone-size mocked payment/reload flow; verify compilation before publishing.
+
