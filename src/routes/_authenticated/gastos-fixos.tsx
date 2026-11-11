@@ -27,12 +27,13 @@ function FixedExpensesPage() {
   const categoryQuery = useRows("categories");
   const dismissQuery = useRows("recurrence_dismissals");
   const { data: purchases = [] } = useRows("installment_purchases");
+  const { data: invoicePayments = [] } = useRows("card_invoice_payments");
   const fixed = fixedQuery.data ?? [], payments = paymentQuery.data ?? [], transactions = txQuery.data ?? [], categories = categoryQuery.data ?? [];
   const today = fixedToday();
   const summary = fixedSummary(fixed, payments, transactions, today);
   const suggestions = detectRecurrences(transactions, fixed, new Set((dismissQuery.data ?? []).map((d) => d.signature)), today);
   const agenda = dueSchedule(fixed, payments, transactions, today, new Date(today.getFullYear(), today.getMonth(), today.getDate() - 45), new Date(today.getFullYear(), today.getMonth() + 2, 0));
-  const installments = purchases.flatMap(installmentLines).filter((l) => !l.paid && l.monthKey === monthKey(today)).reduce((s, l) => s + l.amount, 0);
+  const installments = purchases.flatMap((p) => installmentLines(p, invoicePayments)).filter((l) => !l.paid && l.monthKey === monthKey(today)).reduce((s, l) => s + l.amount, 0);
   const [editing, setEditing] = useState<{ form: FixedForm; existing?: FixedExpense; signature?: string } | null>(null);
   const [paying, setPaying] = useState<DueItem | null>(null);
   const [undo, setUndo] = useState<DueItem | null>(null);

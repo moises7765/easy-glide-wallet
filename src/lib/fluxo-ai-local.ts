@@ -108,7 +108,7 @@ function situation(context: FluxoAiContext, key: string) {
     return `Ainda não há lançamentos em ${monthName(key)}. Registre entradas e saídas (ex.: “Recebi 2.000 de salário”) para eu montar seu resumo.`;
   }
   const top = categoriesOf(context, key).slice(0, 3);
-  const committed = context.purchases.reduce((s, p) => s + remainingOf(p).total, 0);
+  const committed = context.purchases.reduce((s, p) => s + remainingOf(p, context.invoicePayments).total, 0);
   const lines = [
     `**Resumo de ${monthName(key)}**`,
     "",

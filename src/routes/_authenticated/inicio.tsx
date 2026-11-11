@@ -40,6 +40,7 @@ function Dashboard() {
   const { data: categories = [] } = useRows("categories");
   const { data: cards = [] } = useRows("cards");
   const { data: purchases = [] } = useRows("installment_purchases");
+  const { data: invoicePayments = [] } = useRows("card_invoice_payments");
   const { data: assets = [] } = useRows("assets");
   const { data: goals = [] } = useRows("goals");
   const { data: snapshots = [] } = useRows("net_worth_snapshots");
@@ -61,7 +62,7 @@ function Dashboard() {
       .filter((t) => isConsumptionExpense(t) && monthKey(t.date) === current)
       .reduce((s, t) => s + num(t.amount), 0);
     const netWorth = assets.reduce((s, a) => s + num(a.value), 0);
-    const committed = purchases.reduce((s, p) => s + remainingOf(p).total, 0);
+    const committed = purchases.reduce((s, p) => s + remainingOf(p, invoicePayments).total, 0);
 
     // Baseline: most recent snapshot registered on or before the 1st of the current month.
     const firstDayOfMonth = `${current}-01`;
@@ -72,7 +73,7 @@ function Dashboard() {
     const netWorthChange = netWorth - baselineNetWorth;
 
     return { balance: monthIn - monthOut, monthIn, monthOut, monthConsumption, netWorth, committed, netWorthChange };
-  }, [transactions, assets, purchases, snapshots, current]);
+  }, [transactions, assets, purchases, invoicePayments, snapshots, current]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; color: string; value: number }>();
