@@ -393,6 +393,7 @@ export type Database = {
           id: string
           installments_count: number
           installments_paid: number
+          manual_installments_paid: number | null
           note: string | null
           total_amount: number
           updated_at: string
@@ -407,6 +408,7 @@ export type Database = {
           id?: string
           installments_count?: number
           installments_paid?: number
+          manual_installments_paid?: number | null
           note?: string | null
           total_amount: number
           updated_at?: string
@@ -421,6 +423,7 @@ export type Database = {
           id?: string
           installments_count?: number
           installments_paid?: number
+          manual_installments_paid?: number | null
           note?: string | null
           total_amount?: number
           updated_at?: string
